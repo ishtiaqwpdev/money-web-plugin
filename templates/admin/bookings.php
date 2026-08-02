@@ -9,12 +9,71 @@
 
 defined( 'ABSPATH' ) || exit;
 
+if ( ! empty( $gmm_admin_denied ) ) {
+	echo '<div class="gmm-wrapper"><p>' . esc_html__( 'You do not have permission to manage bookings.', 'gospel-music-mastery' ) . '</p></div>';
+	return;
+}
+
 if ( ! isset( $user_name ) ) {
 	$user_name = 'Guest';
 }
 if ( ! isset( $user_first_name ) ) {
 	$user_first_name = $user_name;
 }
+if ( ! isset( $bookings ) || ! is_array( $bookings ) ) {
+	$bookings = array();
+}
+if ( ! isset( $booking_stats ) || ! is_array( $booking_stats ) ) {
+	$booking_stats = array(
+		'total'     => 0,
+		'upcoming'  => 0,
+		'completed' => 0,
+		'cancelled' => 0,
+		'pending'   => 0,
+	);
+}
+if ( ! isset( $filters ) || ! is_array( $filters ) ) {
+	$filters = array(
+		'search'  => '',
+		'status'  => 'all',
+		'payment' => 'all',
+		'period'  => 'all',
+		'page'    => 1,
+	);
+}
+if ( ! isset( $pagination ) || ! is_array( $pagination ) ) {
+	$pagination = array(
+		'page'        => 1,
+		'total'       => 0,
+		'total_pages' => 0,
+		'has_prev'    => false,
+		'has_next'    => false,
+		'prev_page'   => null,
+		'next_page'   => null,
+	);
+}
+if ( ! isset( $booking_activity ) || ! is_array( $booking_activity ) ) {
+	$booking_activity = array();
+}
+if ( ! isset( $logout_url ) ) {
+	$logout_url = function_exists( 'gmm_logout_url' ) ? gmm_logout_url( home_url( '/' ) ) : wp_logout_url( home_url( '/' ) );
+}
+if ( ! isset( $last_login_label ) ) {
+	$last_login_label = __( 'Last login: Today', 'gospel-music-mastery' );
+}
+
+$filter_search  = isset( $filters['search'] ) ? (string) $filters['search'] : '';
+$filter_status  = isset( $filters['status'] ) ? (string) $filters['status'] : 'all';
+$filter_payment = isset( $filters['payment'] ) ? (string) $filters['payment'] : 'all';
+$filter_period  = isset( $filters['period'] ) ? (string) $filters['period'] : 'all';
+$result_total   = isset( $pagination['total'] ) ? absint( $pagination['total'] ) : count( $bookings );
+$total_pages    = isset( $pagination['total_pages'] ) ? absint( $pagination['total_pages'] ) : 1;
+$current_page   = isset( $pagination['page'] ) ? absint( $pagination['page'] ) : 1;
+$stat_total     = isset( $booking_stats['total'] ) ? absint( $booking_stats['total'] ) : 0;
+$stat_upcoming  = isset( $booking_stats['upcoming'] ) ? absint( $booking_stats['upcoming'] ) : 0;
+$stat_completed = isset( $booking_stats['completed'] ) ? absint( $booking_stats['completed'] ) : 0;
+$stat_cancelled = isset( $booking_stats['cancelled'] ) ? absint( $booking_stats['cancelled'] ) : 0;
+$stat_pending   = isset( $booking_stats['pending'] ) ? absint( $booking_stats['pending'] ) : 0;
 ?>
 <div class="gmm-wrapper gmm-dashboard gmm-admin">
 
@@ -33,7 +92,7 @@ if ( ! isset( $user_first_name ) ) {
                             <span class="sd-role">Platform Admin</span>
                             <div class="sd-profile-stats">
                                 <span class="sd-stat-item"><i class="far fa-shield-check"></i> Full Access</span>
-                                <span class="sd-stat-item"><i class="far fa-clock"></i> Last login: Today, 09:12 AM</span>
+                                <span class="sd-stat-item"><i class="far fa-clock"></i> <?php echo esc_html( $last_login_label ); ?></span>
                             </div>
                         </div>
                     </div>
@@ -67,7 +126,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <a class="dropdown-item ad-dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>"><i class="far fa-user"></i> <span>My Profile</span></a>
                                 <a class="dropdown-item ad-dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>"><i class="far fa-gear"></i> <span>Settings</span></a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item ad-dropdown-item is-logout" href="admin-login.html"><i class="far fa-right-from-bracket"></i> <span>Logout</span></a>
+                                <a class="dropdown-item ad-dropdown-item is-logout" href="<?php echo esc_url( $logout_url ); ?>"><i class="far fa-right-from-bracket"></i> <span>Logout</span></a>
                             </div>
                         </div>
                     </div>
@@ -99,7 +158,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_payments' ) ); ?>" class="sd-nav-link" data-nav="payments"><i class="far fa-credit-card"></i> Payments</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_programs' ) ); ?>" class="sd-nav-link" data-nav="programs"><i class="far fa-music"></i> Music Programs</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>" class="sd-nav-link" data-nav="settings"><i class="far fa-gear"></i> Settings</a></li>
-                                <li><a href="admin-login.html" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
+                                <li><a href="<?php echo esc_url( $logout_url ); ?>" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
                             </ul>
                         </nav>
                     </aside>
@@ -123,35 +182,35 @@ if ( ! isset( $user_first_name ) ) {
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-calendar-check"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="540">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) $stat_total ); ?>">0</span>
                                     <span class="sd-stat-title">Total Bookings</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-calendar-days"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="120">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) $stat_upcoming ); ?>">0</span>
                                     <span class="sd-stat-title">Upcoming Lessons</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-circle-check"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="350">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) $stat_completed ); ?>">0</span>
                                     <span class="sd-stat-title">Completed Lessons</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-circle-xmark"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="40">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) $stat_cancelled ); ?>">0</span>
                                     <span class="sd-stat-title">Cancelled</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card is-pending">
                                 <div class="sd-stat-icon"><i class="far fa-clock"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="30">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) $stat_pending ); ?>">0</span>
                                     <span class="sd-stat-title">Pending</span>
                                 </div>
                             </div>
@@ -192,49 +251,54 @@ if ( ! isset( $user_first_name ) ) {
                                         <h3>All Bookings</h3>
                                         <p>Search and manage student lesson bookings.</p>
                                     </div>
-                                    <span class="sf-count-pill" id="ab-result-count"><i class="far fa-calendar-check"></i> <strong>8</strong> Shown</span>
+                                    <span class="sf-count-pill" id="ab-result-count"><i class="far fa-calendar-check"></i> <strong><?php echo esc_html( (string) $result_total ); ?></strong> Shown</span>
                                 </div>
 
-                                <form class="at-filter-bar" id="ab-filter-form" action="#" method="get">
+                                <form class="at-filter-bar" id="ab-filter-form" action="" method="get">
+                                    <?php if ( is_admin() ) : ?>
+                                        <input type="hidden" name="page" value="gmm-bookings">
+                                    <?php endif; ?>
                                     <div class="at-search-field">
                                         <i class="far fa-search" aria-hidden="true"></i>
-                                        <input type="search" class="form-control" id="ab-search"
+                                        <input type="search" class="form-control" id="ab-search" name="ab_search"
+                                            value="<?php echo esc_attr( $filter_search ); ?>"
                                             placeholder="Search by student, teacher, or class..." autocomplete="off">
                                     </div>
                                     <div class="at-filter-selects">
                                         <div class="form-group mb-0">
                                             <label for="ab-status" class="visually-hidden">Booking Status</label>
-                                            <select class="form-control form-select" id="ab-status">
-                                                <option value="all">All Booking Status</option>
-                                                <option value="pending">Pending</option>
-                                                <option value="confirmed">Confirmed</option>
-                                                <option value="completed">Completed</option>
-                                                <option value="cancelled">Cancelled</option>
+                                            <select class="form-control form-select" id="ab-status" name="ab_status">
+                                                <option value="all" <?php selected( $filter_status, 'all' ); ?>>All Booking Status</option>
+                                                <option value="pending" <?php selected( $filter_status, 'pending' ); ?>>Pending</option>
+                                                <option value="confirmed" <?php selected( $filter_status, 'confirmed' ); ?>>Confirmed</option>
+                                                <option value="completed" <?php selected( $filter_status, 'completed' ); ?>>Completed</option>
+                                                <option value="cancelled" <?php selected( $filter_status, 'cancelled' ); ?>>Cancelled</option>
                                             </select>
                                         </div>
                                         <div class="form-group mb-0">
                                             <label for="ab-payment" class="visually-hidden">Payment Status</label>
-                                            <select class="form-control form-select" id="ab-payment">
-                                                <option value="all">All Payment Status</option>
-                                                <option value="paid">Paid</option>
-                                                <option value="pending">Pending</option>
-                                                <option value="refunded">Refunded</option>
+                                            <select class="form-control form-select" id="ab-payment" name="ab_payment">
+                                                <option value="all" <?php selected( $filter_payment, 'all' ); ?>>All Payment Status</option>
+                                                <option value="paid" <?php selected( $filter_payment, 'paid' ); ?>>Paid</option>
+                                                <option value="pending" <?php selected( $filter_payment, 'pending' ); ?>>Pending</option>
+                                                <option value="failed" <?php selected( $filter_payment, 'failed' ); ?>>Failed</option>
+                                                <option value="refunded" <?php selected( $filter_payment, 'refunded' ); ?>>Refunded</option>
                                             </select>
                                         </div>
                                         <div class="form-group mb-0">
                                             <label for="ab-date" class="visually-hidden">Date</label>
-                                            <select class="form-control form-select" id="ab-date">
-                                                <option value="all">All Dates</option>
-                                                <option value="today">Today</option>
-                                                <option value="week">This Week</option>
-                                                <option value="month">This Month</option>
+                                            <select class="form-control form-select" id="ab-date" name="ab_date">
+                                                <option value="all" <?php selected( $filter_period, 'all' ); ?>>All Dates</option>
+                                                <option value="today" <?php selected( $filter_period, 'today' ); ?>>Today</option>
+                                                <option value="week" <?php selected( $filter_period, 'week' ); ?>>This Week</option>
+                                                <option value="month" <?php selected( $filter_period, 'month' ); ?>>This Month</option>
                                             </select>
                                         </div>
                                         <button type="submit" class="theme-btn"><i class="far fa-filter"></i> Filter</button>
                                     </div>
                                 </form>
 
-                                <div class="table-responsive td-table-wrap" id="ab-table-wrap">
+                                <div class="table-responsive td-table-wrap" id="ab-table-wrap" <?php echo empty( $bookings ) ? 'hidden' : ''; ?>>
                                     <table class="table td-table sb-table at-table">
                                         <thead>
                                             <tr>
@@ -249,36 +313,70 @@ if ( ! isset( $user_first_name ) ) {
                                             </tr>
                                         </thead>
                                         <tbody id="ab-table-body">
-
+                                        <?php if ( empty( $bookings ) ) : ?>
+                                        <?php else : ?>
+                                            <?php foreach ( $bookings as $booking ) : ?>
+                                                <?php
+                                                $bid = isset( $booking['id'] ) ? absint( $booking['id'] ) : 0;
+                                                $bcode = isset( $booking['code'] ) ? (string) $booking['code'] : ( 'BK-' . $bid );
+                                                $bstudent = isset( $booking['student'] ) ? (string) $booking['student'] : '';
+                                                $bteacher = isset( $booking['teacher'] ) ? (string) $booking['teacher'] : '';
+                                                $bclass = isset( $booking['class'] ) ? (string) $booking['class'] : '';
+                                                $bdate = isset( $booking['date'] ) ? (string) $booking['date'] : '';
+                                                $bdate_raw = isset( $booking['date_raw'] ) ? (string) $booking['date_raw'] : '';
+                                                $btime = isset( $booking['time'] ) ? (string) $booking['time'] : '';
+                                                $bduration = isset( $booking['duration_label'] ) ? (string) $booking['duration_label'] : '';
+                                                $bamount = isset( $booking['amount_label'] ) ? (string) $booking['amount_label'] : '';
+                                                $bpayment = isset( $booking['payment'] ) ? (string) $booking['payment'] : 'pending';
+                                                $bpayment_label = isset( $booking['payment_label'] ) ? (string) $booking['payment_label'] : $bpayment;
+                                                $bpayment_class = isset( $booking['payment_class'] ) ? (string) $booking['payment_class'] : 'is-pending';
+                                                $bstatus = isset( $booking['status'] ) ? (string) $booking['status'] : 'pending';
+                                                $bstatus_label = isset( $booking['status_label'] ) ? (string) $booking['status_label'] : $bstatus;
+                                                $bstatus_class = isset( $booking['status_class'] ) ? (string) $booking['status_class'] : 'is-pending';
+                                                $bperiod = isset( $booking['period'] ) ? (string) $booking['period'] : 'all';
+                                                $bnotes = isset( $booking['notes'] ) ? (string) $booking['notes'] : '';
+                                                $bsimg = isset( $booking['student_image'] ) ? (string) $booking['student_image'] : '';
+                                                $btimg = isset( $booking['teacher_image'] ) ? (string) $booking['teacher_image'] : '';
+                                                $bphone = isset( $booking['teacher_phone'] ) ? (string) $booking['teacher_phone'] : ( isset( $booking['student_phone'] ) ? (string) $booking['student_phone'] : '' );
+                                                $bemail = isset( $booking['student_email'] ) ? (string) $booking['student_email'] : '';
+                                                $bstudent_id = isset( $booking['student_id'] ) ? absint( $booking['student_id'] ) : 0;
+                                                $bteacher_id = isset( $booking['teacher_id'] ) ? absint( $booking['teacher_id'] ) : 0;
+                                                $bstudent_url = ( $bstudent_id && function_exists( 'gmm_get_page_link' ) ) ? add_query_arg( 'as_search', $bstudent, gmm_get_page_link( 'admin_students' ) ) : '';
+                                                $bteacher_url = ( $bteacher_id && function_exists( 'gmm_get_page_link' ) ) ? add_query_arg( 'at_search', $bteacher, gmm_get_page_link( 'admin_teachers' ) ) : '';
+                                                ?>
                                             <tr class="ab-row"
-                                                data-id="BK-1042"
-                                                data-student="Sarah Johnson"
-                                                data-teacher="John Smith"
-                                                data-class="Beginner Gospel Piano"
-                                                data-date="March 20, 2026"
-                                                data-time="10:00 AM"
-                                                data-duration="60 Minutes"
-                                                data-amount="$40"
-                                                data-payment="paid"
-                                                data-status="confirmed"
-                                                data-period="month"
-                                                data-notes="Confirmed booking for worship piano fundamentals."
-                                                data-student-img="assets/img/team/02.jpg"
-                                                data-teacher-img="assets/img/team/01.jpg"
-                                                data-phone="+1 555 123456"
-                                                data-email="sarah@email.com">
+                                                data-id="<?php echo esc_attr( $bcode ); ?>"
+                                                data-booking-id="<?php echo esc_attr( (string) $bid ); ?>"
+                                                data-student="<?php echo esc_attr( $bstudent ); ?>"
+                                                data-teacher="<?php echo esc_attr( $bteacher ); ?>"
+                                                data-class="<?php echo esc_attr( $bclass ); ?>"
+                                                data-date="<?php echo esc_attr( $bdate ); ?>"
+                                                data-date-raw="<?php echo esc_attr( $bdate_raw ); ?>"
+                                                data-time="<?php echo esc_attr( $btime ); ?>"
+                                                data-duration="<?php echo esc_attr( $bduration ); ?>"
+                                                data-amount="<?php echo esc_attr( $bamount ); ?>"
+                                                data-payment="<?php echo esc_attr( $bpayment ); ?>"
+                                                data-status="<?php echo esc_attr( $bstatus ); ?>"
+                                                data-period="<?php echo esc_attr( $bperiod ); ?>"
+                                                data-notes="<?php echo esc_attr( $bnotes ); ?>"
+                                                data-student-img="<?php echo esc_url( $bsimg ); ?>"
+                                                data-teacher-img="<?php echo esc_url( $btimg ); ?>"
+                                                data-phone="<?php echo esc_attr( $bphone ); ?>"
+                                                data-email="<?php echo esc_attr( $bemail ); ?>"
+                                                data-student-url="<?php echo esc_url( $bstudent_url ); ?>"
+                                                data-teacher-url="<?php echo esc_url( $bteacher_url ); ?>">
                                                 <td data-label="Student">
                                                     <div class="sb-teacher-cell">
-                                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="Sarah Johnson">
-                                                        <strong>Sarah Johnson</strong>
+                                                        <img src="<?php echo esc_url( $bsimg ); ?>" alt="<?php echo esc_attr( $bstudent ); ?>">
+                                                        <strong><?php echo esc_html( $bstudent ); ?></strong>
                                                     </div>
                                                 </td>
-                                                <td data-label="Teacher">John Smith</td>
-                                                <td data-label="Class">Beginner Gospel Piano</td>
-                                                <td data-label="Date">March 20, 2026</td>
-                                                <td data-label="Time">10:00 AM</td>
-                                                <td data-label="Payment"><span class="sb-badge is-confirmed ab-payment">Paid</span></td>
-                                                <td data-label="Booking Status"><span class="sb-badge is-confirmed ab-status">Confirmed</span></td>
+                                                <td data-label="Teacher"><?php echo esc_html( $bteacher ); ?></td>
+                                                <td data-label="Class"><?php echo esc_html( $bclass ); ?></td>
+                                                <td data-label="Date"><?php echo esc_html( $bdate ); ?></td>
+                                                <td data-label="Time"><?php echo esc_html( $btime ); ?></td>
+                                                <td data-label="Payment"><span class="sb-badge <?php echo esc_attr( $bpayment_class ); ?> ab-payment"><?php echo esc_html( $bpayment_label ); ?></span></td>
+                                                <td data-label="Booking Status"><span class="sb-badge <?php echo esc_attr( $bstatus_class ); ?> ab-status"><?php echo esc_html( $bstatus_label ); ?></span></td>
                                                 <td data-label="Action">
                                                     <div class="dropdown at-action-dropdown">
                                                         <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions">
@@ -296,356 +394,46 @@ if ( ! isset( $user_first_name ) ) {
                                                     </div>
                                                 </td>
                                             </tr>
-
-                                            <tr class="ab-row"
-                                                data-id="BK-1048"
-                                                data-student="David Wilson"
-                                                data-teacher="Emily Davis"
-                                                data-class="Vocal Training"
-                                                data-date="March 25, 2026"
-                                                data-time="02:00 PM"
-                                                data-duration="45 Minutes"
-                                                data-amount="$50"
-                                                data-payment="pending"
-                                                data-status="pending"
-                                                data-period="week"
-                                                data-notes="Awaiting payment confirmation before lesson start."
-                                                data-student-img="assets/img/team/05.jpg"
-                                                data-teacher-img="assets/img/team/03.jpg"
-                                                data-phone="+1 555 456789"
-                                                data-email="david@email.com">
-                                                <td data-label="Student">
-                                                    <div class="sb-teacher-cell">
-                                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/05.jpg' ) ); ?>" alt="David Wilson">
-                                                        <strong>David Wilson</strong>
-                                                    </div>
-                                                </td>
-                                                <td data-label="Teacher">Emily Davis</td>
-                                                <td data-label="Class">Vocal Training</td>
-                                                <td data-label="Date">March 25, 2026</td>
-                                                <td data-label="Time">02:00 PM</td>
-                                                <td data-label="Payment"><span class="sb-badge is-pending ab-payment">Pending</span></td>
-                                                <td data-label="Booking Status"><span class="sb-badge is-pending ab-status">Pending</span></td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-view-btn"><i class="far fa-eye"></i> <span>View Booking</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-student-btn"><i class="far fa-graduation-cap"></i> <span>View Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-teacher-btn"><i class="far fa-chalkboard-user"></i> <span>View Teacher</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-complete-btn"><i class="far fa-circle-check"></i> <span>Mark Completed</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-cancel-btn"><i class="far fa-circle-xmark"></i> <span>Cancel Booking</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-refund-btn"><i class="far fa-rotate-left"></i> <span>Refund Payment</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="ab-row"
-                                                data-id="BK-1031"
-                                                data-student="Olivia Martin"
-                                                data-teacher="John Smith"
-                                                data-class="Advanced Worship Piano"
-                                                data-date="March 18, 2026"
-                                                data-time="11:00 AM"
-                                                data-duration="60 Minutes"
-                                                data-amount="$55"
-                                                data-payment="paid"
-                                                data-status="completed"
-                                                data-period="week"
-                                                data-notes="Lesson completed successfully. Student requested follow-up."
-                                                data-student-img="assets/img/team/07.jpg"
-                                                data-teacher-img="assets/img/team/01.jpg"
-                                                data-phone="+1 555 444555"
-                                                data-email="olivia@email.com">
-                                                <td data-label="Student">
-                                                    <div class="sb-teacher-cell">
-                                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/07.jpg' ) ); ?>" alt="Olivia Martin">
-                                                        <strong>Olivia Martin</strong>
-                                                    </div>
-                                                </td>
-                                                <td data-label="Teacher">John Smith</td>
-                                                <td data-label="Class">Advanced Worship Piano</td>
-                                                <td data-label="Date">March 18, 2026</td>
-                                                <td data-label="Time">11:00 AM</td>
-                                                <td data-label="Payment"><span class="sb-badge is-confirmed ab-payment">Paid</span></td>
-                                                <td data-label="Booking Status"><span class="sb-badge is-completed ab-status">Completed</span></td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-view-btn"><i class="far fa-eye"></i> <span>View Booking</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-student-btn"><i class="far fa-graduation-cap"></i> <span>View Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-teacher-btn"><i class="far fa-chalkboard-user"></i> <span>View Teacher</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-complete-btn"><i class="far fa-circle-check"></i> <span>Mark Completed</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-cancel-btn"><i class="far fa-circle-xmark"></i> <span>Cancel Booking</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-refund-btn"><i class="far fa-rotate-left"></i> <span>Refund Payment</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="ab-row"
-                                                data-id="BK-1020"
-                                                data-student="Michael Brown"
-                                                data-teacher="David Wilson"
-                                                data-class="Gospel Drum Grooves"
-                                                data-date="March 10, 2026"
-                                                data-time="04:00 PM"
-                                                data-duration="55 Minutes"
-                                                data-amount="$45"
-                                                data-payment="refunded"
-                                                data-status="cancelled"
-                                                data-period="month"
-                                                data-notes="Cancelled by student. Refund processed."
-                                                data-student-img="assets/img/team/04.jpg"
-                                                data-teacher-img="assets/img/team/05.jpg"
-                                                data-phone="+1 555 987654"
-                                                data-email="michael@email.com">
-                                                <td data-label="Student">
-                                                    <div class="sb-teacher-cell">
-                                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/04.jpg' ) ); ?>" alt="Michael Brown">
-                                                        <strong>Michael Brown</strong>
-                                                    </div>
-                                                </td>
-                                                <td data-label="Teacher">David Wilson</td>
-                                                <td data-label="Class">Gospel Drum Grooves</td>
-                                                <td data-label="Date">March 10, 2026</td>
-                                                <td data-label="Time">04:00 PM</td>
-                                                <td data-label="Payment"><span class="sb-badge is-inactive ab-payment">Refunded</span></td>
-                                                <td data-label="Booking Status"><span class="sb-badge is-cancelled ab-status">Cancelled</span></td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-view-btn"><i class="far fa-eye"></i> <span>View Booking</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-student-btn"><i class="far fa-graduation-cap"></i> <span>View Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-teacher-btn"><i class="far fa-chalkboard-user"></i> <span>View Teacher</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-complete-btn"><i class="far fa-circle-check"></i> <span>Mark Completed</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-cancel-btn"><i class="far fa-circle-xmark"></i> <span>Cancel Booking</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-refund-btn"><i class="far fa-rotate-left"></i> <span>Refund Payment</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="ab-row"
-                                                data-id="BK-1055"
-                                                data-student="James Carter"
-                                                data-teacher="Michael Brown"
-                                                data-class="Church Guitar Basics"
-                                                data-date="March 22, 2026"
-                                                data-time="09:00 AM"
-                                                data-duration="50 Minutes"
-                                                data-amount="$35"
-                                                data-payment="paid"
-                                                data-status="confirmed"
-                                                data-period="today"
-                                                data-notes="First guitar lesson — beginner level."
-                                                data-student-img="assets/img/team/06.jpg"
-                                                data-teacher-img="assets/img/team/04.jpg"
-                                                data-phone="+1 555 666777"
-                                                data-email="james.c@email.com">
-                                                <td data-label="Student">
-                                                    <div class="sb-teacher-cell">
-                                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/06.jpg' ) ); ?>" alt="James Carter">
-                                                        <strong>James Carter</strong>
-                                                    </div>
-                                                </td>
-                                                <td data-label="Teacher">Michael Brown</td>
-                                                <td data-label="Class">Church Guitar Basics</td>
-                                                <td data-label="Date">March 22, 2026</td>
-                                                <td data-label="Time">09:00 AM</td>
-                                                <td data-label="Payment"><span class="sb-badge is-confirmed ab-payment">Paid</span></td>
-                                                <td data-label="Booking Status"><span class="sb-badge is-confirmed ab-status">Confirmed</span></td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-view-btn"><i class="far fa-eye"></i> <span>View Booking</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-student-btn"><i class="far fa-graduation-cap"></i> <span>View Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-teacher-btn"><i class="far fa-chalkboard-user"></i> <span>View Teacher</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-complete-btn"><i class="far fa-circle-check"></i> <span>Mark Completed</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-cancel-btn"><i class="far fa-circle-xmark"></i> <span>Cancel Booking</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-refund-btn"><i class="far fa-rotate-left"></i> <span>Refund Payment</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="ab-row"
-                                                data-id="BK-1050"
-                                                data-student="Daniel Brooks"
-                                                data-teacher="Daniel Brooks"
-                                                data-class="Music Theory Fundamentals"
-                                                data-date="March 21, 2026"
-                                                data-time="03:30 PM"
-                                                data-duration="40 Minutes"
-                                                data-amount="$30"
-                                                data-payment="paid"
-                                                data-status="confirmed"
-                                                data-period="week"
-                                                data-notes="Theory focus on chord progressions."
-                                                data-student-img="assets/img/team/08.jpg"
-                                                data-teacher-img="assets/img/team/08.jpg"
-                                                data-phone="+1 555 888999"
-                                                data-email="daniel.b@email.com">
-                                                <td data-label="Student">
-                                                    <div class="sb-teacher-cell">
-                                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/08.jpg' ) ); ?>" alt="Daniel Brooks">
-                                                        <strong>Daniel Brooks</strong>
-                                                    </div>
-                                                </td>
-                                                <td data-label="Teacher">Daniel Brooks</td>
-                                                <td data-label="Class">Music Theory Fundamentals</td>
-                                                <td data-label="Date">March 21, 2026</td>
-                                                <td data-label="Time">03:30 PM</td>
-                                                <td data-label="Payment"><span class="sb-badge is-confirmed ab-payment">Paid</span></td>
-                                                <td data-label="Booking Status"><span class="sb-badge is-confirmed ab-status">Confirmed</span></td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-view-btn"><i class="far fa-eye"></i> <span>View Booking</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-student-btn"><i class="far fa-graduation-cap"></i> <span>View Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-teacher-btn"><i class="far fa-chalkboard-user"></i> <span>View Teacher</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-complete-btn"><i class="far fa-circle-check"></i> <span>Mark Completed</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-cancel-btn"><i class="far fa-circle-xmark"></i> <span>Cancel Booking</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-refund-btn"><i class="far fa-rotate-left"></i> <span>Refund Payment</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="ab-row"
-                                                data-id="BK-1040"
-                                                data-student="Emily Carter"
-                                                data-teacher="Olivia Martin"
-                                                data-class="Choir Harmony Coaching"
-                                                data-date="March 15, 2026"
-                                                data-time="01:00 PM"
-                                                data-duration="50 Minutes"
-                                                data-amount="$48"
-                                                data-payment="paid"
-                                                data-status="completed"
-                                                data-period="month"
-                                                data-notes="Harmony stacking session completed."
-                                                data-student-img="assets/img/team/03.jpg"
-                                                data-teacher-img="assets/img/team/07.jpg"
-                                                data-phone="+1 555 222333"
-                                                data-email="emily.c@email.com">
-                                                <td data-label="Student">
-                                                    <div class="sb-teacher-cell">
-                                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/03.jpg' ) ); ?>" alt="Emily Carter">
-                                                        <strong>Emily Carter</strong>
-                                                    </div>
-                                                </td>
-                                                <td data-label="Teacher">Olivia Martin</td>
-                                                <td data-label="Class">Choir Harmony Coaching</td>
-                                                <td data-label="Date">March 15, 2026</td>
-                                                <td data-label="Time">01:00 PM</td>
-                                                <td data-label="Payment"><span class="sb-badge is-confirmed ab-payment">Paid</span></td>
-                                                <td data-label="Booking Status"><span class="sb-badge is-completed ab-status">Completed</span></td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-view-btn"><i class="far fa-eye"></i> <span>View Booking</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-student-btn"><i class="far fa-graduation-cap"></i> <span>View Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-teacher-btn"><i class="far fa-chalkboard-user"></i> <span>View Teacher</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-complete-btn"><i class="far fa-circle-check"></i> <span>Mark Completed</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-cancel-btn"><i class="far fa-circle-xmark"></i> <span>Cancel Booking</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-refund-btn"><i class="far fa-rotate-left"></i> <span>Refund Payment</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="ab-row"
-                                                data-id="BK-1058"
-                                                data-student="Hannah Lee"
-                                                data-teacher="John Smith"
-                                                data-class="Beginner Gospel Piano"
-                                                data-date="March 28, 2026"
-                                                data-time="05:00 PM"
-                                                data-duration="60 Minutes"
-                                                data-amount="$40"
-                                                data-payment="pending"
-                                                data-status="pending"
-                                                data-period="month"
-                                                data-notes="New student booking — payment not yet received."
-                                                data-student-img="assets/img/team/02.jpg"
-                                                data-teacher-img="assets/img/team/01.jpg"
-                                                data-phone="+1 555 101112"
-                                                data-email="hannah@email.com">
-                                                <td data-label="Student">
-                                                    <div class="sb-teacher-cell">
-                                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="Hannah Lee">
-                                                        <strong>Hannah Lee</strong>
-                                                    </div>
-                                                </td>
-                                                <td data-label="Teacher">John Smith</td>
-                                                <td data-label="Class">Beginner Gospel Piano</td>
-                                                <td data-label="Date">March 28, 2026</td>
-                                                <td data-label="Time">05:00 PM</td>
-                                                <td data-label="Payment"><span class="sb-badge is-pending ab-payment">Pending</span></td>
-                                                <td data-label="Booking Status"><span class="sb-badge is-pending ab-status">Pending</span></td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-view-btn"><i class="far fa-eye"></i> <span>View Booking</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-student-btn"><i class="far fa-graduation-cap"></i> <span>View Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-teacher-btn"><i class="far fa-chalkboard-user"></i> <span>View Teacher</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-complete-btn"><i class="far fa-circle-check"></i> <span>Mark Completed</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-cancel-btn"><i class="far fa-circle-xmark"></i> <span>Cancel Booking</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item ab-refund-btn"><i class="far fa-rotate-left"></i> <span>Refund Payment</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
 
                                         </tbody>
                                     </table>
                                 </div>
 
-                                <div class="sl-empty" id="ab-empty" hidden>
+                                <div class="sl-empty" id="ab-empty" <?php echo empty( $bookings ) ? '' : 'hidden'; ?>>
                                     <i class="far fa-calendar-xmark"></i>
                                     <h3>No bookings available.</h3>
                                     <p>Try adjusting your search or filter options.</p>
                                 </div>
 
-                                <nav class="at-pagination" id="ab-pagination" aria-label="Bookings pagination">
+                                <?php
+                                $show_pagination = $total_pages > 1;
+                                $prev_disabled   = empty( $pagination['has_prev'] );
+                                $next_disabled   = empty( $pagination['has_next'] );
+                                $prev_url = ( ! $prev_disabled && ! empty( $pagination['prev_page'] ) && function_exists( 'gmm_admin_bookings_page_url' ) )
+                                    ? gmm_admin_bookings_page_url( (int) $pagination['prev_page'], $filters )
+                                    : '#';
+                                $next_url = ( ! $next_disabled && ! empty( $pagination['next_page'] ) && function_exists( 'gmm_admin_bookings_page_url' ) )
+                                    ? gmm_admin_bookings_page_url( (int) $pagination['next_page'], $filters )
+                                    : '#';
+                                ?>
+                                <nav class="at-pagination" id="ab-pagination" aria-label="Bookings pagination" <?php echo $show_pagination ? '' : 'hidden'; ?>>
                                     <ul class="pagination justify-content-center mb-0">
-                                        <li class="page-item disabled" id="ab-page-prev">
-                                            <a class="page-link" href="#" data-page="prev" aria-label="Previous"><i class="far fa-angle-left"></i> Previous</a>
+                                        <li class="page-item<?php echo $prev_disabled ? ' disabled' : ''; ?>" id="ab-page-prev">
+                                            <a class="page-link" href="<?php echo esc_url( $prev_url ); ?>" data-page="prev" aria-label="Previous"><i class="far fa-angle-left"></i> Previous</a>
                                         </li>
-                                        <li class="page-item active"><a class="page-link" href="#" data-page="1">1</a></li>
-                                        <li class="page-item"><a class="page-link" href="#" data-page="2">2</a></li>
-                                        <li class="page-item"><a class="page-link" href="#" data-page="3">3</a></li>
-                                        <li class="page-item" id="ab-page-next">
-                                            <a class="page-link" href="#" data-page="next" aria-label="Next">Next <i class="far fa-angle-right"></i></a>
+                                        <?php
+                                        $start_p = max( 1, $current_page - 2 );
+                                        $end_p   = min( $total_pages, $start_p + 4 );
+                                        $start_p = max( 1, $end_p - 4 );
+                                        for ( $p = $start_p; $p <= $end_p; $p++ ) :
+                                            $p_url = function_exists( 'gmm_admin_bookings_page_url' ) ? gmm_admin_bookings_page_url( $p, $filters ) : '#';
+                                            ?>
+                                        <li class="page-item<?php echo ( $p === $current_page ) ? ' active' : ''; ?>"><a class="page-link" href="<?php echo esc_url( $p_url ); ?>" data-page="<?php echo esc_attr( (string) $p ); ?>"><?php echo esc_html( (string) $p ); ?></a></li>
+                                        <?php endfor; ?>
+                                        <li class="page-item<?php echo $next_disabled ? ' disabled' : ''; ?>" id="ab-page-next">
+                                            <a class="page-link" href="<?php echo esc_url( $next_url ); ?>" data-page="next" aria-label="Next">Next <i class="far fa-angle-right"></i></a>
                                         </li>
                                     </ul>
                                 </nav>
@@ -687,38 +475,34 @@ if ( ! isset( $user_first_name ) ) {
                                         </div>
                                     </div>
                                     <ul class="ad-timeline ab-activity-timeline">
+                                        <?php if ( empty( $booking_activity ) ) : ?>
                                         <li class="ad-timeline-item is-class">
-                                            <span class="ad-timeline-icon"><i class="far fa-calendar-plus"></i></span>
+                                            <span class="ad-timeline-icon"><i class="far fa-calendar-check"></i></span>
                                             <div class="ad-timeline-body">
-                                                <h4>New booking created</h4>
-                                                <p>Sarah Johnson booked Beginner Gospel Piano.</p>
+                                                <h4><?php echo esc_html__( 'No recent activity', 'gospel-music-mastery' ); ?></h4>
+                                                <p><?php echo esc_html__( 'Booking events will appear here.', 'gospel-music-mastery' ); ?></p>
                                             </div>
-                                            <span class="ad-timeline-time">12 min ago</span>
+                                            <span class="ad-timeline-time">—</span>
                                         </li>
-                                        <li class="ad-timeline-item is-payment">
-                                            <span class="ad-timeline-icon"><i class="far fa-credit-card"></i></span>
+                                        <?php else : ?>
+                                            <?php foreach ( $booking_activity as $activity ) : ?>
+                                                <?php
+                                                $a_title = isset( $activity['title'] ) ? (string) $activity['title'] : '';
+                                                $a_meta  = isset( $activity['meta'] ) ? (string) $activity['meta'] : '';
+                                                $a_time  = isset( $activity['time'] ) ? (string) $activity['time'] : '';
+                                                $a_icon  = isset( $activity['icon'] ) ? (string) $activity['icon'] : 'far fa-calendar-check';
+                                                $a_css   = isset( $activity['css'] ) ? (string) $activity['css'] : 'is-class';
+                                                ?>
+                                        <li class="ad-timeline-item <?php echo esc_attr( $a_css ); ?>">
+                                            <span class="ad-timeline-icon"><i class="<?php echo esc_attr( $a_icon ); ?>"></i></span>
                                             <div class="ad-timeline-body">
-                                                <h4>Payment received</h4>
-                                                <p>$40 paid for booking BK-1042.</p>
+                                                <h4><?php echo esc_html( $a_title ); ?></h4>
+                                                <p><?php echo esc_html( $a_meta ); ?></p>
                                             </div>
-                                            <span class="ad-timeline-time">45 min ago</span>
+                                            <span class="ad-timeline-time"><?php echo esc_html( $a_time ); ?></span>
                                         </li>
-                                        <li class="ad-timeline-item is-teacher">
-                                            <span class="ad-timeline-icon"><i class="far fa-circle-check"></i></span>
-                                            <div class="ad-timeline-body">
-                                                <h4>Lesson completed</h4>
-                                                <p>Olivia Martin finished Advanced Worship Piano.</p>
-                                            </div>
-                                            <span class="ad-timeline-time">2 hours ago</span>
-                                        </li>
-                                        <li class="ad-timeline-item is-student">
-                                            <span class="ad-timeline-icon"><i class="far fa-circle-xmark"></i></span>
-                                            <div class="ad-timeline-body">
-                                                <h4>Booking cancelled</h4>
-                                                <p>Michael Brown cancelled Gospel Drum Grooves.</p>
-                                            </div>
-                                            <span class="ad-timeline-time">Yesterday</span>
-                                        </li>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
                                     </ul>
                                 </section>
                             </aside>

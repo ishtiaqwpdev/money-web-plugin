@@ -289,14 +289,15 @@ class GMM_Settings {
 	 * @return array<string, mixed>
 	 */
 	public static function default_payment() {
+		$commission = self::default_commission();
 		return array(
-			'payment_mode'       => 'test',
-			'currency'           => 'USD',
-			'payment_provider'   => 'stripe',
-			'stripe_enabled'     => 'yes',
-			'paypal_enabled'     => 'no',
-			// Legacy key kept in sync for older payment code.
-			'commission_percent' => 10,
+			'payment_mode'         => 'test',
+			'currency'             => 'USD',
+			'commission_percent'   => isset( $commission['commission_percent'] ) ? $commission['commission_percent'] : 10,
+			'minimum_withdrawal'   => isset( $commission['minimum_withdrawal'] ) ? $commission['minimum_withdrawal'] : 50,
+			'payment_provider'     => 'stripe',
+			'stripe_enabled'       => 'yes',
+			'paypal_enabled'       => 'no',
 		);
 	}
 
@@ -362,8 +363,11 @@ class GMM_Settings {
 	 * @return array<string, mixed>
 	 */
 	public static function sanitize_general( $input ) {
-		$input = is_array( $input ) ? $input : array();
-		$out   = self::default_general();
+		if ( ! is_array( $input ) || empty( $input ) ) {
+			return self::get_group( self::OPTION_GENERAL );
+		}
+		$out = self::default_general();
+		$out = wp_parse_args( self::get_group( self::OPTION_GENERAL ), $out );
 
 		if ( isset( $input['site_name'] ) ) {
 			$out['site_name'] = sanitize_text_field( (string) $input['site_name'] );
@@ -400,8 +404,12 @@ class GMM_Settings {
 	 * @return array<string, mixed>
 	 */
 	public static function sanitize_commission( $input ) {
+		if ( ! is_array( $input ) || empty( $input ) ) {
+			return self::get_group( self::OPTION_COMMISSION );
+		}
 		$input = is_array( $input ) ? $input : array();
 		$out   = self::default_commission();
+		$out   = wp_parse_args( self::get_group( self::OPTION_COMMISSION ), $out );
 
 		if ( isset( $input['commission_percent'] ) || isset( $input['commission_rate'] ) ) {
 			$raw = isset( $input['commission_percent'] ) ? $input['commission_percent'] : $input['commission_rate'];
@@ -432,14 +440,23 @@ class GMM_Settings {
 	 * @return array<string, mixed>
 	 */
 	public static function sanitize_payment( $input ) {
+		if ( ! is_array( $input ) || empty( $input ) ) {
+			return self::get_group( self::OPTION_PAYMENT );
+		}
 		$input = is_array( $input ) ? $input : array();
 		$out   = self::default_payment();
 
-		// Preserve commission from dedicated option when not posted.
+		// Preserve existing values when a single tab posts partial fields.
+		$existing = self::get_group( self::OPTION_PAYMENT );
+		$out      = wp_parse_args( is_array( $existing ) ? $existing : array(), $out );
+
 		$commission = self::get_group( self::OPTION_COMMISSION );
-		$out['commission_percent'] = isset( $commission['commission_percent'] )
-			? self::sanitize_commission_percent( $commission['commission_percent'] )
-			: 10;
+		if ( ! isset( $out['commission_percent'] ) && isset( $commission['commission_percent'] ) ) {
+			$out['commission_percent'] = self::sanitize_commission_percent( $commission['commission_percent'] );
+		}
+		if ( ! isset( $out['minimum_withdrawal'] ) && isset( $commission['minimum_withdrawal'] ) ) {
+			$out['minimum_withdrawal'] = max( 0, round( (float) $commission['minimum_withdrawal'], 2 ) );
+		}
 
 		if ( isset( $input['payment_mode'] ) ) {
 			$mode = sanitize_key( (string) $input['payment_mode'] );
@@ -465,6 +482,21 @@ class GMM_Settings {
 			$out['commission_percent'] = self::sanitize_commission_percent( $input['commission_percent'] );
 		}
 
+		if ( isset( $input['minimum_withdrawal'] ) ) {
+			$out['minimum_withdrawal'] = max( 0, round( (float) $input['minimum_withdrawal'], 2 ) );
+		}
+
+		// Sync dedicated commission option used by earnings/payment engines.
+		$commission_out = self::default_commission();
+		$commission_out = wp_parse_args( is_array( $commission ) ? $commission : array(), $commission_out );
+		$commission_out['commission_percent'] = isset( $out['commission_percent'] )
+			? self::sanitize_commission_percent( $out['commission_percent'] )
+			: 10;
+		$commission_out['minimum_withdrawal'] = isset( $out['minimum_withdrawal'] )
+			? max( 0, round( (float) $out['minimum_withdrawal'], 2 ) )
+			: 50;
+		update_option( self::OPTION_COMMISSION, $commission_out, false );
+
 		return $out;
 	}
 
@@ -475,8 +507,18 @@ class GMM_Settings {
 	 * @return array<string, mixed>
 	 */
 	public static function sanitize_email( $input ) {
+		if ( ! is_array( $input ) || empty( $input ) ) {
+			return self::get_group( self::OPTION_EMAIL );
+		}
 		$input = is_array( $input ) ? $input : array();
 		$out   = self::default_email();
+		$existing = self::get_group( self::OPTION_EMAIL );
+		if ( is_array( $existing ) ) {
+			$out = wp_parse_args( $existing, $out );
+			if ( isset( $existing['preferences'] ) && is_array( $existing['preferences'] ) ) {
+				$out['preferences'] = wp_parse_args( $existing['preferences'], $out['preferences'] );
+			}
+		}
 
 		if ( isset( $input['from_name'] ) ) {
 			$out['from_name'] = sanitize_text_field( (string) $input['from_name'] );
@@ -508,7 +550,9 @@ class GMM_Settings {
 			'notify_new_registration'  => 'new_registration',
 			'notify_teacher_approval'  => 'teacher_approval',
 			'notify_booking_created'   => 'booking_created',
+			'notify_booking_updates'   => 'booking_created',
 			'notify_payment_completed' => 'payment_completed',
+			'notify_payment_updates'   => 'payment_completed',
 			'notify_review_submitted'  => 'review_submitted',
 		);
 		foreach ( $pref_map as $field => $pref_key ) {
@@ -535,6 +579,15 @@ class GMM_Settings {
 		if ( isset( $out['preferences']['teacher_approval'] ) ) {
 			$out['preferences']['teacher_approved'] = $out['preferences']['teacher_approval'];
 		}
+		if ( isset( $out['preferences']['booking_created'] ) ) {
+			$out['preferences']['booking_confirmed'] = $out['preferences']['booking_created'];
+			$out['preferences']['booking_cancelled'] = $out['preferences']['booking_created'];
+			$out['preferences']['lesson_completed']  = $out['preferences']['booking_created'];
+		}
+		if ( isset( $out['preferences']['payment_completed'] ) ) {
+			$out['preferences']['payment_activity'] = $out['preferences']['payment_completed'];
+			$out['preferences']['payment_refunded'] = $out['preferences']['payment_completed'];
+		}
 
 		return $out;
 	}
@@ -546,8 +599,12 @@ class GMM_Settings {
 	 * @return array<string, mixed>
 	 */
 	public static function sanitize_dashboard( $input ) {
+		if ( ! is_array( $input ) || empty( $input ) ) {
+			return self::get_group( self::OPTION_DASHBOARD );
+		}
 		$input = is_array( $input ) ? $input : array();
 		$out   = self::default_dashboard();
+		$out   = wp_parse_args( self::get_group( self::OPTION_DASHBOARD ), $out );
 
 		foreach ( array( 'enable_charts', 'enable_animations' ) as $flag ) {
 			if ( isset( $input[ $flag ] ) ) {
@@ -570,8 +627,12 @@ class GMM_Settings {
 	 * @return array<string, mixed>
 	 */
 	public static function sanitize_security( $input ) {
+		if ( ! is_array( $input ) || empty( $input ) ) {
+			return self::get_group( self::OPTION_SECURITY );
+		}
 		$input = is_array( $input ) ? $input : array();
 		$out   = self::default_security();
+		$out   = wp_parse_args( self::get_group( self::OPTION_SECURITY ), $out );
 
 		foreach ( array( 'enable_nonce_protection', 'enable_user_verification' ) as $flag ) {
 			if ( isset( $input[ $flag ] ) ) {

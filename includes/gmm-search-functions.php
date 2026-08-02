@@ -122,6 +122,19 @@ function gmm_admin_filter_classes( $args = array() ) {
  * @return array<string, mixed>|WP_Error
  */
 function gmm_admin_filter_bookings( $args = array() ) {
+	if ( class_exists( 'GMM_Admin_Bookings' ) ) {
+		$list_args = array(
+			'search'    => isset( $args['search'] ) ? $args['search'] : '',
+			'status'    => ! empty( $args['status'] ) ? $args['status'] : 'all',
+			'payment'   => ! empty( $args['payment'] ) ? $args['payment'] : 'all',
+			'period'    => ! empty( $args['period'] ) ? $args['period'] : ( ! empty( $args['date'] ) ? 'custom' : 'all' ),
+			'date_from' => isset( $args['date_from'] ) ? $args['date_from'] : ( ! empty( $args['date'] ) ? $args['date'] : '' ),
+			'date_to'   => isset( $args['date_to'] ) ? $args['date_to'] : ( ! empty( $args['date'] ) ? $args['date'] : '' ),
+			'page'      => isset( $args['page'] ) ? absint( $args['page'] ) : 1,
+			'per_page'  => isset( $args['per_page'] ) ? absint( $args['per_page'] ) : GMM_Admin_Bookings::PER_PAGE,
+		);
+		return GMM_Admin_Bookings::list_bookings( $list_args );
+	}
 	if ( ! class_exists( 'GMM_Search' ) ) {
 		return new WP_Error( 'gmm_missing', __( 'Search unavailable.', 'gospel-music-mastery' ) );
 	}
@@ -135,6 +148,20 @@ function gmm_admin_filter_bookings( $args = array() ) {
  * @return array<string, mixed>|WP_Error
  */
 function gmm_admin_filter_payments( $args = array() ) {
+	if ( class_exists( 'GMM_Admin_Payments' ) ) {
+		$list_args = array(
+			'search'    => isset( $args['search'] ) ? $args['search'] : '',
+			'status'    => ! empty( $args['status'] ) ? $args['status'] : 'all',
+			'type'      => ! empty( $args['type'] ) ? $args['type'] : 'all',
+			'method'    => ! empty( $args['method'] ) ? $args['method'] : ( ! empty( $args['payment_method'] ) ? $args['payment_method'] : 'all' ),
+			'period'    => ! empty( $args['period'] ) ? $args['period'] : 'all',
+			'date_from' => isset( $args['date_from'] ) ? $args['date_from'] : '',
+			'date_to'   => isset( $args['date_to'] ) ? $args['date_to'] : '',
+			'page'      => isset( $args['page'] ) ? absint( $args['page'] ) : 1,
+			'per_page'  => isset( $args['per_page'] ) ? absint( $args['per_page'] ) : GMM_Admin_Payments::PER_PAGE,
+		);
+		return GMM_Admin_Payments::list_payments( $list_args );
+	}
 	if ( ! class_exists( 'GMM_Search' ) ) {
 		return new WP_Error( 'gmm_missing', __( 'Search unavailable.', 'gospel-music-mastery' ) );
 	}

@@ -9,12 +9,72 @@
 
 defined( 'ABSPATH' ) || exit;
 
+if ( ! empty( $gmm_admin_denied ) ) {
+	echo '<div class="gmm-wrapper"><p>' . esc_html__( 'You do not have permission to manage payments.', 'gospel-music-mastery' ) . '</p></div>';
+	return;
+}
+
 if ( ! isset( $user_name ) ) {
 	$user_name = 'Guest';
 }
 if ( ! isset( $user_first_name ) ) {
 	$user_first_name = $user_name;
 }
+if ( ! isset( $payments ) || ! is_array( $payments ) ) {
+	$payments = array();
+}
+if ( ! isset( $payment_stats ) || ! is_array( $payment_stats ) ) {
+	$payment_stats = function_exists( 'gmm_get_admin_revenue' ) ? gmm_get_admin_revenue() : array();
+}
+if ( ! isset( $filters ) || ! is_array( $filters ) ) {
+	$filters = array(
+		'search' => '',
+		'status' => 'all',
+		'type'   => 'all',
+		'method' => 'all',
+		'period' => 'all',
+		'page'   => 1,
+	);
+}
+if ( ! isset( $pagination ) || ! is_array( $pagination ) ) {
+	$pagination = array(
+		'page'        => 1,
+		'total'       => 0,
+		'total_pages' => 0,
+		'has_prev'    => false,
+		'has_next'    => false,
+		'prev_page'   => null,
+		'next_page'   => null,
+	);
+}
+if ( ! isset( $refund_requests ) || ! is_array( $refund_requests ) ) {
+	$refund_requests = array();
+}
+if ( ! isset( $teacher_earnings_list ) || ! is_array( $teacher_earnings_list ) ) {
+	$teacher_earnings_list = array();
+}
+if ( ! isset( $logout_url ) ) {
+	$logout_url = function_exists( 'gmm_logout_url' ) ? gmm_logout_url( home_url( '/' ) ) : wp_logout_url( home_url( '/' ) );
+}
+if ( ! isset( $last_login_label ) ) {
+	$last_login_label = __( 'Last login: Today', 'gospel-music-mastery' );
+}
+
+$filter_search  = isset( $filters['search'] ) ? (string) $filters['search'] : '';
+$filter_status  = isset( $filters['status'] ) ? (string) $filters['status'] : 'all';
+$filter_type    = isset( $filters['type'] ) ? (string) $filters['type'] : 'all';
+$filter_period  = isset( $filters['period'] ) ? (string) $filters['period'] : 'all';
+$result_total   = isset( $pagination['total'] ) ? absint( $pagination['total'] ) : count( $payments );
+$total_pages    = isset( $pagination['total_pages'] ) ? absint( $pagination['total_pages'] ) : 1;
+$current_page   = isset( $pagination['page'] ) ? absint( $pagination['page'] ) : 1;
+
+$stat_revenue   = isset( $payment_stats['total_revenue'] ) ? (float) $payment_stats['total_revenue'] : 0;
+$stat_commission = isset( $payment_stats['platform_commission'] ) ? (float) $payment_stats['platform_commission'] : 0;
+$stat_teacher   = isset( $payment_stats['teacher_earnings'] ) ? (float) $payment_stats['teacher_earnings'] : 0;
+$stat_pending   = isset( $payment_stats['pending_payouts'] ) ? (float) $payment_stats['pending_payouts'] : 0;
+$stat_completed = isset( $payment_stats['completed_count'] ) ? absint( $payment_stats['completed_count'] ) : 0;
+$stat_refunds   = isset( $payment_stats['refund_count'] ) ? absint( $payment_stats['refund_count'] ) : 0;
+$stat_percent   = isset( $payment_stats['commission_percent'] ) ? (float) $payment_stats['commission_percent'] : 10;
 ?>
 <div class="gmm-wrapper gmm-dashboard gmm-admin">
 
@@ -33,7 +93,7 @@ if ( ! isset( $user_first_name ) ) {
                             <span class="sd-role">Platform Admin</span>
                             <div class="sd-profile-stats">
                                 <span class="sd-stat-item"><i class="far fa-shield-check"></i> Full Access</span>
-                                <span class="sd-stat-item"><i class="far fa-clock"></i> Last login: Today, 09:12 AM</span>
+                                <span class="sd-stat-item"><i class="far fa-clock"></i> <?php echo esc_html( $last_login_label ); ?></span>
                             </div>
                         </div>
                     </div>
@@ -67,7 +127,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <a class="dropdown-item ad-dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>"><i class="far fa-user"></i> <span>My Profile</span></a>
                                 <a class="dropdown-item ad-dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>"><i class="far fa-gear"></i> <span>Settings</span></a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item ad-dropdown-item is-logout" href="admin-login.html"><i class="far fa-right-from-bracket"></i> <span>Logout</span></a>
+                                <a class="dropdown-item ad-dropdown-item is-logout" href="<?php echo esc_url( $logout_url ); ?>"><i class="far fa-right-from-bracket"></i> <span>Logout</span></a>
                             </div>
                         </div>
                     </div>
@@ -99,7 +159,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_payments' ) ); ?>" class="sd-nav-link active" data-nav="payments"><i class="far fa-credit-card"></i> Payments</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_programs' ) ); ?>" class="sd-nav-link" data-nav="programs"><i class="far fa-music"></i> Music Programs</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>" class="sd-nav-link" data-nav="settings"><i class="far fa-gear"></i> Settings</a></li>
-                                <li><a href="admin-login.html" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
+                                <li><a href="<?php echo esc_url( $logout_url ); ?>" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
                             </ul>
                         </nav>
                     </aside>
@@ -130,42 +190,42 @@ if ( ! isset( $user_first_name ) ) {
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-dollar-sign"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="50000" data-format="currency">$0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) round( $stat_revenue ) ); ?>" data-format="currency">$0</span>
                                     <span class="sd-stat-title">Total Revenue</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-percent"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="10000" data-format="currency">$0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) round( $stat_commission ) ); ?>" data-format="currency">$0</span>
                                     <span class="sd-stat-title">Platform Commission</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-chalkboard-user"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="40000" data-format="currency">$0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) round( $stat_teacher ) ); ?>" data-format="currency">$0</span>
                                     <span class="sd-stat-title">Teacher Earnings</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card is-pending">
                                 <div class="sd-stat-icon"><i class="far fa-clock"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="5000" data-format="currency">$0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) round( $stat_pending ) ); ?>" data-format="currency">$0</span>
                                     <span class="sd-stat-title">Pending Payouts</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-receipt"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="850" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) $stat_completed ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">Completed Transactions</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-rotate-left"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="25" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) $stat_refunds ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">Refunds</span>
                                 </div>
                             </div>
@@ -184,11 +244,11 @@ if ( ! isset( $user_first_name ) ) {
                                 <ul class="ap-earn-list">
                                     <li>
                                         <span>Total Paid</span>
-                                        <strong>$40,000</strong>
+                                        <strong><?php echo esc_html( '$' . number_format_i18n( $stat_teacher, 0 ) ); ?></strong>
                                     </li>
                                     <li>
                                         <span>Pending</span>
-                                        <strong class="is-pending">$5,000</strong>
+                                        <strong class="is-pending"><?php echo esc_html( '$' . number_format_i18n( $stat_pending, 0 ) ); ?></strong>
                                     </li>
                                 </ul>
                             </section>
@@ -204,11 +264,11 @@ if ( ! isset( $user_first_name ) ) {
                                 <ul class="ap-earn-list">
                                     <li>
                                         <span>Commission</span>
-                                        <strong>$10,000</strong>
+                                        <strong><?php echo esc_html( '$' . number_format_i18n( $stat_commission, 0 ) ); ?></strong>
                                     </li>
                                     <li>
                                         <span>Share of Revenue</span>
-                                        <strong>20%</strong>
+                                        <strong><?php echo esc_html( number_format_i18n( $stat_percent, 0 ) . '%' ); ?></strong>
                                     </li>
                                 </ul>
                             </section>
@@ -222,7 +282,7 @@ if ( ! isset( $user_first_name ) ) {
                                         <h3>Revenue Chart</h3>
                                         <p>Monthly platform revenue for the year.</p>
                                     </div>
-                                    <span class="ad-chart-total">$50,000</span>
+                                    <span class="ad-chart-total"><?php echo esc_html( '$' . number_format_i18n( $stat_revenue, 0 ) ); ?></span>
                                 </div>
                                 <div class="gmm-chart-wrap">
                                     <canvas id="gmm-ap-revenue" aria-label="Revenue area chart"></canvas>
@@ -249,49 +309,53 @@ if ( ! isset( $user_first_name ) ) {
                                     <h3>Transactions</h3>
                                     <p>Search and filter all platform payment activity.</p>
                                 </div>
-                                <span class="sf-count-pill" id="ap-result-count"><i class="far fa-receipt"></i> <strong>8</strong> Shown</span>
+                                <span class="sf-count-pill" id="ap-result-count"><i class="far fa-receipt"></i> <strong><?php echo esc_html( (string) $result_total ); ?></strong> Shown</span>
                             </div>
 
-                            <form class="at-filter-bar" id="ap-filter-form" action="#" method="get">
+                            <form class="at-filter-bar" id="ap-filter-form" action="" method="get">
+                                <?php if ( is_admin() ) : ?>
+                                    <input type="hidden" name="page" value="gmm-payments">
+                                <?php endif; ?>
                                 <div class="at-search-field">
                                     <i class="far fa-search" aria-hidden="true"></i>
-                                    <input type="search" class="form-control" id="ap-search"
+                                    <input type="search" class="form-control" id="ap-search" name="ap_search"
+                                        value="<?php echo esc_attr( $filter_search ); ?>"
                                         placeholder="Search transaction ID or user..." autocomplete="off">
                                 </div>
                                 <div class="at-filter-selects">
                                     <div class="form-group mb-0">
                                         <label for="ap-status" class="visually-hidden">Payment Status</label>
-                                        <select class="form-control form-select" id="ap-status">
-                                            <option value="all">All Payment Status</option>
-                                            <option value="completed">Completed</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="failed">Failed</option>
-                                            <option value="refunded">Refunded</option>
+                                        <select class="form-control form-select" id="ap-status" name="ap_status">
+                                            <option value="all" <?php selected( $filter_status, 'all' ); ?>>All Payment Status</option>
+                                            <option value="completed" <?php selected( $filter_status, 'completed' ); ?>>Completed</option>
+                                            <option value="pending" <?php selected( $filter_status, 'pending' ); ?>>Pending</option>
+                                            <option value="failed" <?php selected( $filter_status, 'failed' ); ?>>Failed</option>
+                                            <option value="refunded" <?php selected( $filter_status, 'refunded' ); ?>>Refunded</option>
                                         </select>
                                     </div>
                                     <div class="form-group mb-0">
                                         <label for="ap-type" class="visually-hidden">Payment Type</label>
-                                        <select class="form-control form-select" id="ap-type">
-                                            <option value="all">All Payment Types</option>
-                                            <option value="lesson">Lesson Payment</option>
-                                            <option value="payout">Teacher Payout</option>
-                                            <option value="refund">Refund</option>
+                                        <select class="form-control form-select" id="ap-type" name="ap_type">
+                                            <option value="all" <?php selected( $filter_type, 'all' ); ?>>All Payment Types</option>
+                                            <option value="lesson" <?php selected( $filter_type, 'lesson' ); ?>>Lesson Payment</option>
+                                            <option value="payout" <?php selected( $filter_type, 'payout' ); ?>>Teacher Payout</option>
+                                            <option value="refund" <?php selected( $filter_type, 'refund' ); ?>>Refund</option>
                                         </select>
                                     </div>
                                     <div class="form-group mb-0">
                                         <label for="ap-date" class="visually-hidden">Date</label>
-                                        <select class="form-control form-select" id="ap-date">
-                                            <option value="all">All Dates</option>
-                                            <option value="today">Today</option>
-                                            <option value="week">This Week</option>
-                                            <option value="month">This Month</option>
+                                        <select class="form-control form-select" id="ap-date" name="ap_date">
+                                            <option value="all" <?php selected( $filter_period, 'all' ); ?>>All Dates</option>
+                                            <option value="today" <?php selected( $filter_period, 'today' ); ?>>Today</option>
+                                            <option value="week" <?php selected( $filter_period, 'week' ); ?>>This Week</option>
+                                            <option value="month" <?php selected( $filter_period, 'month' ); ?>>This Month</option>
                                         </select>
                                     </div>
                                     <button type="submit" class="theme-btn"><i class="far fa-filter"></i> Filter</button>
                                 </div>
                             </form>
 
-                            <div class="table-responsive td-table-wrap" id="ap-table-wrap">
+                            <div class="table-responsive td-table-wrap" id="ap-table-wrap" <?php echo empty( $payments ) ? 'hidden' : ''; ?>>
                                 <table class="table td-table sb-table at-table">
                                     <thead>
                                         <tr>
@@ -305,284 +369,114 @@ if ( ! isset( $user_first_name ) ) {
                                             <th>Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="ap-table-body">
-
+                                        <tbody id="ap-table-body">
+                                        <?php if ( empty( $payments ) ) : ?>
+                                        <?php else : ?>
+                                            <?php foreach ( $payments as $payment ) : ?>
+                                                <?php
+                                                $pid = isset( $payment['id'] ) ? absint( $payment['id'] ) : 0;
+                                                $ptxn = isset( $payment['txn_code'] ) ? (string) $payment['txn_code'] : ( 'TXN-' . $pid );
+                                                $puser = isset( $payment['user'] ) ? (string) $payment['user'] : '';
+                                                $ptype = isset( $payment['type'] ) ? (string) $payment['type'] : 'lesson';
+                                                $ptype_label = isset( $payment['type_label'] ) ? (string) $payment['type_label'] : '';
+                                                $pamount = isset( $payment['amount_label'] ) ? (string) $payment['amount_label'] : '$0';
+                                                $pmethod = isset( $payment['method_label'] ) ? (string) $payment['method_label'] : '';
+                                                $pstatus = isset( $payment['status'] ) ? (string) $payment['status'] : 'pending';
+                                                $pstatus_label = isset( $payment['status_label'] ) ? (string) $payment['status_label'] : $pstatus;
+                                                $pstatus_class = isset( $payment['status_class'] ) ? (string) $payment['status_class'] : 'is-pending';
+                                                $pdate = isset( $payment['date'] ) ? (string) $payment['date'] : '';
+                                                $pperiod = isset( $payment['period'] ) ? (string) $payment['period'] : 'all';
+                                                $pemail = isset( $payment['user_email'] ) ? (string) $payment['user_email'] : '';
+                                                $pimg = isset( $payment['user_image'] ) ? (string) $payment['user_image'] : '';
+                                                $pbooking = isset( $payment['booking_code'] ) ? (string) $payment['booking_code'] : '—';
+                                                $pcommission = isset( $payment['commission_label'] ) ? (string) $payment['commission_label'] : '';
+                                                $pearnings = isset( $payment['teacher_earnings_label'] ) ? (string) $payment['teacher_earnings_label'] : '';
+                                                $pteacher = isset( $payment['teacher'] ) ? (string) $payment['teacher'] : '';
+                                                $pstudent = isset( $payment['student'] ) ? (string) $payment['student'] : '';
+                                                $puser_url = ( $ptype === 'payout' && function_exists( 'gmm_get_page_link' ) )
+                                                    ? add_query_arg( 'at_search', $pteacher, gmm_get_page_link( 'admin_teachers' ) )
+                                                    : ( function_exists( 'gmm_get_page_link' ) ? add_query_arg( 'as_search', $pstudent, gmm_get_page_link( 'admin_students' ) ) : '' );
+                                                $pbooking_url = ( ! empty( $payment['booking_id'] ) && function_exists( 'gmm_get_page_link' ) )
+                                                    ? add_query_arg( 'ab_search', $pbooking, gmm_get_page_link( 'admin_bookings' ) )
+                                                    : '';
+                                                ?>
                                         <tr class="ap-row"
-                                            data-id="TXN-1001"
-                                            data-user="Sarah Johnson"
-                                            data-type="lesson"
-                                            data-type-label="Lesson Payment"
-                                            data-amount="$40"
-                                            data-method="Stripe"
-                                            data-status="completed"
-                                            data-date="March 20, 2026"
-                                            data-period="month"
-                                            data-email="sarah@email.com"
-                                            data-user-img="assets/img/team/02.jpg"
-                                            data-booking="BK-1042">
-                                            <td data-label="Transaction ID"><strong>TXN-1001</strong></td>
+                                            data-id="<?php echo esc_attr( $ptxn ); ?>"
+                                            data-payment-id="<?php echo esc_attr( (string) $pid ); ?>"
+                                            data-user="<?php echo esc_attr( $puser ); ?>"
+                                            data-type="<?php echo esc_attr( $ptype ); ?>"
+                                            data-type-label="<?php echo esc_attr( $ptype_label ); ?>"
+                                            data-amount="<?php echo esc_attr( $pamount ); ?>"
+                                            data-method="<?php echo esc_attr( $pmethod ); ?>"
+                                            data-status="<?php echo esc_attr( $pstatus ); ?>"
+                                            data-date="<?php echo esc_attr( $pdate ); ?>"
+                                            data-period="<?php echo esc_attr( $pperiod ); ?>"
+                                            data-email="<?php echo esc_attr( $pemail ); ?>"
+                                            data-user-img="<?php echo esc_url( $pimg ); ?>"
+                                            data-booking="<?php echo esc_attr( $pbooking ); ?>"
+                                            data-commission="<?php echo esc_attr( $pcommission ); ?>"
+                                            data-teacher-earnings="<?php echo esc_attr( $pearnings ); ?>"
+                                            data-teacher="<?php echo esc_attr( $pteacher ); ?>"
+                                            data-student="<?php echo esc_attr( $pstudent ); ?>"
+                                            data-user-url="<?php echo esc_url( $puser_url ); ?>"
+                                            data-booking-url="<?php echo esc_url( $pbooking_url ); ?>">
+                                            <td data-label="Transaction ID"><strong><?php echo esc_html( $ptxn ); ?></strong></td>
                                             <td data-label="User">
                                                 <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="Sarah Johnson">
-                                                    <strong>Sarah Johnson</strong>
+                                                    <img src="<?php echo esc_url( $pimg ); ?>" alt="<?php echo esc_attr( $puser ); ?>">
+                                                    <strong><?php echo esc_html( $puser ); ?></strong>
                                                 </div>
                                             </td>
-                                            <td data-label="Type">Lesson Payment</td>
-                                            <td data-label="Amount"><strong>$40</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed ap-status">Completed</span></td>
-                                            <td data-label="Date">March 20, 2026</td>
+                                            <td data-label="Type"><?php echo esc_html( $ptype_label ); ?></td>
+                                            <td data-label="Amount"><strong><?php echo esc_html( $pamount ); ?></strong></td>
+                                            <td data-label="Payment Method"><?php echo esc_html( $pmethod ); ?></td>
+                                            <td data-label="Status"><span class="sb-badge <?php echo esc_attr( $pstatus_class ); ?> ap-status"><?php echo esc_html( $pstatus_label ); ?></span></td>
+                                            <td data-label="Date"><?php echo esc_html( $pdate ); ?></td>
                                             <td data-label="Action">
                                                 <button type="button" class="at-action-btn ap-view-btn" aria-label="View transaction">
                                                     <i class="far fa-eye"></i>
                                                 </button>
                                             </td>
                                         </tr>
-
-                                        <tr class="ap-row"
-                                            data-id="TXN-1002"
-                                            data-user="John Smith"
-                                            data-type="payout"
-                                            data-type-label="Teacher Payout"
-                                            data-amount="$250"
-                                            data-method="Stripe"
-                                            data-status="pending"
-                                            data-date="March 25, 2026"
-                                            data-period="week"
-                                            data-email="john@email.com"
-                                            data-user-img="assets/img/team/01.jpg"
-                                            data-booking="—">
-                                            <td data-label="Transaction ID"><strong>TXN-1002</strong></td>
-                                            <td data-label="User">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="John Smith">
-                                                    <strong>John Smith</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Type">Teacher Payout</td>
-                                            <td data-label="Amount"><strong>$250</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending ap-status">Pending</span></td>
-                                            <td data-label="Date">March 25, 2026</td>
-                                            <td data-label="Action">
-                                                <button type="button" class="at-action-btn ap-view-btn" aria-label="View transaction">
-                                                    <i class="far fa-eye"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="ap-row"
-                                            data-id="TXN-1003"
-                                            data-user="David Wilson"
-                                            data-type="lesson"
-                                            data-type-label="Lesson Payment"
-                                            data-amount="$50"
-                                            data-method="Stripe"
-                                            data-status="pending"
-                                            data-date="March 25, 2026"
-                                            data-period="week"
-                                            data-email="david@email.com"
-                                            data-user-img="assets/img/team/05.jpg"
-                                            data-booking="BK-1048">
-                                            <td data-label="Transaction ID"><strong>TXN-1003</strong></td>
-                                            <td data-label="User">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/05.jpg' ) ); ?>" alt="David Wilson">
-                                                    <strong>David Wilson</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Type">Lesson Payment</td>
-                                            <td data-label="Amount"><strong>$50</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending ap-status">Pending</span></td>
-                                            <td data-label="Date">March 25, 2026</td>
-                                            <td data-label="Action">
-                                                <button type="button" class="at-action-btn ap-view-btn" aria-label="View transaction">
-                                                    <i class="far fa-eye"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="ap-row"
-                                            data-id="TXN-1004"
-                                            data-user="Olivia Martin"
-                                            data-type="lesson"
-                                            data-type-label="Lesson Payment"
-                                            data-amount="$55"
-                                            data-method="Stripe"
-                                            data-status="completed"
-                                            data-date="March 18, 2026"
-                                            data-period="week"
-                                            data-email="olivia@email.com"
-                                            data-user-img="assets/img/team/07.jpg"
-                                            data-booking="BK-1031">
-                                            <td data-label="Transaction ID"><strong>TXN-1004</strong></td>
-                                            <td data-label="User">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/07.jpg' ) ); ?>" alt="Olivia Martin">
-                                                    <strong>Olivia Martin</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Type">Lesson Payment</td>
-                                            <td data-label="Amount"><strong>$55</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed ap-status">Completed</span></td>
-                                            <td data-label="Date">March 18, 2026</td>
-                                            <td data-label="Action">
-                                                <button type="button" class="at-action-btn ap-view-btn" aria-label="View transaction">
-                                                    <i class="far fa-eye"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="ap-row"
-                                            data-id="TXN-1005"
-                                            data-user="Michael Brown"
-                                            data-type="refund"
-                                            data-type-label="Refund"
-                                            data-amount="$45"
-                                            data-method="Stripe"
-                                            data-status="refunded"
-                                            data-date="March 12, 2026"
-                                            data-period="month"
-                                            data-email="michael@email.com"
-                                            data-user-img="assets/img/team/04.jpg"
-                                            data-booking="BK-1020">
-                                            <td data-label="Transaction ID"><strong>TXN-1005</strong></td>
-                                            <td data-label="User">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/04.jpg' ) ); ?>" alt="Michael Brown">
-                                                    <strong>Michael Brown</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Type">Refund</td>
-                                            <td data-label="Amount"><strong>$45</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-inactive ap-status">Refunded</span></td>
-                                            <td data-label="Date">March 12, 2026</td>
-                                            <td data-label="Action">
-                                                <button type="button" class="at-action-btn ap-view-btn" aria-label="View transaction">
-                                                    <i class="far fa-eye"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="ap-row"
-                                            data-id="TXN-1006"
-                                            data-user="Emily Davis"
-                                            data-type="payout"
-                                            data-type-label="Teacher Payout"
-                                            data-amount="$320"
-                                            data-method="Stripe"
-                                            data-status="completed"
-                                            data-date="March 22, 2026"
-                                            data-period="today"
-                                            data-email="emily@email.com"
-                                            data-user-img="assets/img/team/03.jpg"
-                                            data-booking="—">
-                                            <td data-label="Transaction ID"><strong>TXN-1006</strong></td>
-                                            <td data-label="User">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/03.jpg' ) ); ?>" alt="Emily Davis">
-                                                    <strong>Emily Davis</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Type">Teacher Payout</td>
-                                            <td data-label="Amount"><strong>$320</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed ap-status">Completed</span></td>
-                                            <td data-label="Date">March 22, 2026</td>
-                                            <td data-label="Action">
-                                                <button type="button" class="at-action-btn ap-view-btn" aria-label="View transaction">
-                                                    <i class="far fa-eye"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="ap-row"
-                                            data-id="TXN-1007"
-                                            data-user="James Carter"
-                                            data-type="lesson"
-                                            data-type-label="Lesson Payment"
-                                            data-amount="$35"
-                                            data-method="Stripe"
-                                            data-status="failed"
-                                            data-date="March 21, 2026"
-                                            data-period="week"
-                                            data-email="james.c@email.com"
-                                            data-user-img="assets/img/team/06.jpg"
-                                            data-booking="BK-1055">
-                                            <td data-label="Transaction ID"><strong>TXN-1007</strong></td>
-                                            <td data-label="User">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/06.jpg' ) ); ?>" alt="James Carter">
-                                                    <strong>James Carter</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Type">Lesson Payment</td>
-                                            <td data-label="Amount"><strong>$35</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-failed ap-status">Failed</span></td>
-                                            <td data-label="Date">March 21, 2026</td>
-                                            <td data-label="Action">
-                                                <button type="button" class="at-action-btn ap-view-btn" aria-label="View transaction">
-                                                    <i class="far fa-eye"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="ap-row"
-                                            data-id="TXN-1008"
-                                            data-user="Hannah Lee"
-                                            data-type="lesson"
-                                            data-type-label="Lesson Payment"
-                                            data-amount="$40"
-                                            data-method="Stripe"
-                                            data-status="completed"
-                                            data-date="March 19, 2026"
-                                            data-period="week"
-                                            data-email="hannah@email.com"
-                                            data-user-img="assets/img/team/02.jpg"
-                                            data-booking="BK-1058">
-                                            <td data-label="Transaction ID"><strong>TXN-1008</strong></td>
-                                            <td data-label="User">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="Hannah Lee">
-                                                    <strong>Hannah Lee</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Type">Lesson Payment</td>
-                                            <td data-label="Amount"><strong>$40</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed ap-status">Completed</span></td>
-                                            <td data-label="Date">March 19, 2026</td>
-                                            <td data-label="Action">
-                                                <button type="button" class="at-action-btn ap-view-btn" aria-label="View transaction">
-                                                    <i class="far fa-eye"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-
-                                    </tbody>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                        </tbody>
                                 </table>
                             </div>
 
-                            <div class="sl-empty" id="ap-empty" hidden>
+                            <div class="sl-empty" id="ap-empty" <?php echo empty( $payments ) ? '' : 'hidden'; ?>>
                                 <i class="far fa-receipt"></i>
                                 <h3>No transactions found.</h3>
                                 <p>Try adjusting your search or filter options.</p>
                             </div>
 
-                            <nav class="at-pagination" id="ap-pagination" aria-label="Transactions pagination">
+                            <?php
+                            $show_pagination = $total_pages > 1;
+                            $prev_disabled   = empty( $pagination['has_prev'] );
+                            $next_disabled   = empty( $pagination['has_next'] );
+                            $prev_url = ( ! $prev_disabled && ! empty( $pagination['prev_page'] ) && function_exists( 'gmm_admin_payments_page_url' ) )
+                                ? gmm_admin_payments_page_url( (int) $pagination['prev_page'], $filters )
+                                : '#';
+                            $next_url = ( ! $next_disabled && ! empty( $pagination['next_page'] ) && function_exists( 'gmm_admin_payments_page_url' ) )
+                                ? gmm_admin_payments_page_url( (int) $pagination['next_page'], $filters )
+                                : '#';
+                            ?>
+                            <nav class="at-pagination" id="ap-pagination" aria-label="Transactions pagination" <?php echo $show_pagination ? '' : 'hidden'; ?>>
                                 <ul class="pagination justify-content-center mb-0">
-                                    <li class="page-item disabled" id="ap-page-prev">
-                                        <a class="page-link" href="#" data-page="prev" aria-label="Previous"><i class="far fa-angle-left"></i> Previous</a>
+                                    <li class="page-item<?php echo $prev_disabled ? ' disabled' : ''; ?>" id="ap-page-prev">
+                                        <a class="page-link" href="<?php echo esc_url( $prev_url ); ?>" data-page="prev" aria-label="Previous"><i class="far fa-angle-left"></i> Previous</a>
                                     </li>
-                                    <li class="page-item active"><a class="page-link" href="#" data-page="1">1</a></li>
-                                    <li class="page-item"><a class="page-link" href="#" data-page="2">2</a></li>
-                                    <li class="page-item"><a class="page-link" href="#" data-page="3">3</a></li>
-                                    <li class="page-item" id="ap-page-next">
-                                        <a class="page-link" href="#" data-page="next" aria-label="Next">Next <i class="far fa-angle-right"></i></a>
+                                    <?php
+                                    $start_p = max( 1, $current_page - 2 );
+                                    $end_p   = min( $total_pages, $start_p + 4 );
+                                    $start_p = max( 1, $end_p - 4 );
+                                    for ( $p = $start_p; $p <= $end_p; $p++ ) :
+                                        $p_url = function_exists( 'gmm_admin_payments_page_url' ) ? gmm_admin_payments_page_url( $p, $filters ) : '#';
+                                        ?>
+                                    <li class="page-item<?php echo ( $p === $current_page ) ? ' active' : ''; ?>"><a class="page-link" href="<?php echo esc_url( $p_url ); ?>" data-page="<?php echo esc_attr( (string) $p ); ?>"><?php echo esc_html( (string) $p ); ?></a></li>
+                                    <?php endfor; ?>
+                                    <li class="page-item<?php echo $next_disabled ? ' disabled' : ''; ?>" id="ap-page-next">
+                                        <a class="page-link" href="<?php echo esc_url( $next_url ); ?>" data-page="next" aria-label="Next">Next <i class="far fa-angle-right"></i></a>
                                     </li>
                                 </ul>
                             </nav>
@@ -608,16 +502,31 @@ if ( ! isset( $user_first_name ) ) {
                                             <th>Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="ap-refund-body">
-                                        <tr class="ap-refund-row" data-id="RF-201" data-user="Michael Brown" data-amount="$45">
+                                                                        <tbody id="ap-refund-body">
+                                        <?php if ( empty( $refund_requests ) ) : ?>
+                                        <tr>
+                                            <td colspan="5"><?php echo esc_html__( 'No pending refund requests.', 'gospel-music-mastery' ); ?></td>
+                                        </tr>
+                                        <?php else : ?>
+                                            <?php foreach ( $refund_requests as $refund ) : ?>
+                                                <?php
+                                                $rid = isset( $refund['id'] ) ? (string) $refund['id'] : '';
+                                                $ruser = isset( $refund['user'] ) ? (string) $refund['user'] : '';
+                                                $ramount = isset( $refund['amount_label'] ) ? (string) $refund['amount_label'] : '$0';
+                                                $rreason = isset( $refund['reason'] ) ? (string) $refund['reason'] : '';
+                                                $rimg = isset( $refund['user_image'] ) ? (string) $refund['user_image'] : '';
+                                                $rpay = isset( $refund['payment_id'] ) ? absint( $refund['payment_id'] ) : 0;
+                                                $ridx = isset( $refund['index'] ) ? (int) $refund['index'] : -1;
+                                                ?>
+                                        <tr class="ap-refund-row" data-id="<?php echo esc_attr( $rid ); ?>" data-payment-id="<?php echo esc_attr( (string) $rpay ); ?>" data-index="<?php echo esc_attr( (string) $ridx ); ?>" data-user="<?php echo esc_attr( $ruser ); ?>" data-amount="<?php echo esc_attr( $ramount ); ?>">
                                             <td data-label="User">
                                                 <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/04.jpg' ) ); ?>" alt="Michael Brown">
-                                                    <strong>Michael Brown</strong>
+                                                    <img src="<?php echo esc_url( $rimg ); ?>" alt="<?php echo esc_attr( $ruser ); ?>">
+                                                    <strong><?php echo esc_html( $ruser ); ?></strong>
                                                 </div>
                                             </td>
-                                            <td data-label="Amount"><strong>$45</strong></td>
-                                            <td data-label="Reason">Lesson cancelled by student</td>
+                                            <td data-label="Amount"><strong><?php echo esc_html( $ramount ); ?></strong></td>
+                                            <td data-label="Reason"><?php echo esc_html( $rreason ); ?></td>
                                             <td data-label="Status"><span class="sb-badge is-pending ap-refund-status">Pending</span></td>
                                             <td data-label="Action">
                                                 <div class="ap-refund-actions">
@@ -626,40 +535,8 @@ if ( ! isset( $user_first_name ) ) {
                                                 </div>
                                             </td>
                                         </tr>
-                                        <tr class="ap-refund-row" data-id="RF-202" data-user="David Wilson" data-amount="$50">
-                                            <td data-label="User">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/05.jpg' ) ); ?>" alt="David Wilson">
-                                                    <strong>David Wilson</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Amount"><strong>$50</strong></td>
-                                            <td data-label="Reason">Teacher unavailable — reschedule declined</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending ap-refund-status">Pending</span></td>
-                                            <td data-label="Action">
-                                                <div class="ap-refund-actions">
-                                                    <button type="button" class="theme-btn ap-approve-refund"><i class="far fa-check"></i> Approve Refund</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline ap-reject-refund"><i class="far fa-xmark"></i> Reject Refund</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <tr class="ap-refund-row" data-id="RF-203" data-user="Hannah Lee" data-amount="$40">
-                                            <td data-label="User">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="Hannah Lee">
-                                                    <strong>Hannah Lee</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Amount"><strong>$40</strong></td>
-                                            <td data-label="Reason">Duplicate payment charged</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending ap-refund-status">Pending</span></td>
-                                            <td data-label="Action">
-                                                <div class="ap-refund-actions">
-                                                    <button type="button" class="theme-btn ap-approve-refund"><i class="far fa-check"></i> Approve Refund</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline ap-reject-refund"><i class="far fa-xmark"></i> Reject Refund</button>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>

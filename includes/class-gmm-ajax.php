@@ -84,6 +84,14 @@ class GMM_Ajax {
 		$loader->add_action( 'wp_ajax_gmm_delete_class', $instance, 'delete_class' );
 		$loader->add_action( 'wp_ajax_gmm_bulk_class_action', $instance, 'bulk_class_action' );
 		$loader->add_action( 'wp_ajax_gmm_get_class_profile', $instance, 'get_class_profile' );
+		$loader->add_action( 'wp_ajax_gmm_get_booking_profile', $instance, 'get_booking_profile' );
+		$loader->add_action( 'wp_ajax_gmm_admin_update_booking_payment', $instance, 'admin_update_booking_payment' );
+		$loader->add_action( 'wp_ajax_gmm_admin_update_booking_status', $instance, 'admin_update_booking_status' );
+		$loader->add_action( 'wp_ajax_gmm_get_payment_profile', $instance, 'get_payment_profile' );
+		$loader->add_action( 'wp_ajax_gmm_admin_update_payment_status', $instance, 'admin_update_payment_status' );
+		$loader->add_action( 'wp_ajax_gmm_admin_approve_refund', $instance, 'admin_approve_refund' );
+		$loader->add_action( 'wp_ajax_gmm_admin_reject_refund', $instance, 'admin_reject_refund' );
+		$loader->add_action( 'wp_ajax_gmm_admin_payment_export', $instance, 'admin_payment_export' );
 		$loader->add_action( 'wp_ajax_gmm_delete_content', $instance, 'delete_content' );
 		$loader->add_action( 'wp_ajax_gmm_update_payment_status', $instance, 'update_payment_status' );
 	}
@@ -293,7 +301,25 @@ class GMM_Ajax {
 	public function filter_bookings() {
 		$this->verify_request();
 		$this->require_admin();
-		$result = gmm_admin_filter_bookings( $this->get_filter_args() );
+
+		$args = $this->get_filter_args();
+		if ( class_exists( 'GMM_Admin_Bookings' ) ) {
+			$list_args = array(
+				'search'    => isset( $args['search'] ) ? $args['search'] : '',
+				'status'    => ! empty( $args['status'] ) ? $args['status'] : 'all',
+				'payment'   => ! empty( $args['payment'] ) ? $args['payment'] : 'all',
+				'period'    => ! empty( $args['period'] ) ? $args['period'] : 'all',
+				'date_from' => isset( $args['date_from'] ) ? $args['date_from'] : '',
+				'date_to'   => isset( $args['date_to'] ) ? $args['date_to'] : '',
+				'page'      => isset( $args['page'] ) ? absint( $args['page'] ) : 1,
+				'per_page'  => isset( $args['per_page'] ) ? absint( $args['per_page'] ) : GMM_Admin_Bookings::PER_PAGE,
+			);
+			$result = GMM_Admin_Bookings::list_bookings( $list_args );
+			$this->send_admin_filter_result( $result );
+			return;
+		}
+
+		$result = gmm_admin_filter_bookings( $args );
 		$this->send_admin_filter_result( $result );
 	}
 
@@ -303,7 +329,26 @@ class GMM_Ajax {
 	public function filter_payments() {
 		$this->verify_request();
 		$this->require_admin();
-		$result = gmm_admin_filter_payments( $this->get_filter_args() );
+
+		$args = $this->get_filter_args();
+		if ( class_exists( 'GMM_Admin_Payments' ) ) {
+			$list_args = array(
+				'search'    => isset( $args['search'] ) ? $args['search'] : '',
+				'status'    => ! empty( $args['status'] ) ? $args['status'] : 'all',
+				'type'      => ! empty( $args['type'] ) ? $args['type'] : 'all',
+				'method'    => ! empty( $args['method'] ) ? $args['method'] : 'all',
+				'period'    => ! empty( $args['period'] ) ? $args['period'] : 'all',
+				'date_from' => isset( $args['date_from'] ) ? $args['date_from'] : '',
+				'date_to'   => isset( $args['date_to'] ) ? $args['date_to'] : '',
+				'page'      => isset( $args['page'] ) ? absint( $args['page'] ) : 1,
+				'per_page'  => isset( $args['per_page'] ) ? absint( $args['per_page'] ) : GMM_Admin_Payments::PER_PAGE,
+			);
+			$result = GMM_Admin_Payments::list_payments( $list_args );
+			$this->send_admin_filter_result( $result );
+			return;
+		}
+
+		$result = gmm_admin_filter_payments( $args );
 		$this->send_admin_filter_result( $result );
 	}
 
@@ -685,9 +730,14 @@ class GMM_Ajax {
 		}
 
 		$booking_id = absint( $this->post( 'booking_id' ) );
-		$result     = function_exists( 'gmm_teacher_confirm_booking' )
-			? gmm_teacher_confirm_booking( $booking_id, get_current_user_id(), '' )
-			: new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
+
+		if ( current_user_can( 'manage_options' ) && class_exists( 'GMM_Admin_Bookings' ) ) {
+			$result = GMM_Admin_Bookings::confirm( $booking_id );
+		} else {
+			$result = function_exists( 'gmm_teacher_confirm_booking' )
+				? gmm_teacher_confirm_booking( $booking_id, get_current_user_id(), '' )
+				: new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
+		}
 
 		$this->send_result( $result, __( 'Booking confirmed.', 'gospel-music-mastery' ) );
 	}
@@ -706,7 +756,12 @@ class GMM_Ajax {
 		$booking_id = absint( $this->post( 'booking_id' ) );
 		$user_id    = get_current_user_id();
 
-		if ( current_user_can( 'manage_options' ) || gmm_is_teacher( $user_id ) ) {
+		if ( current_user_can( 'manage_options' ) && class_exists( 'GMM_Admin_Bookings' ) ) {
+			if ( '1' !== (string) $this->post( 'confirm' ) ) {
+				wp_send_json_error( array( 'message' => __( 'Confirmation required.', 'gospel-music-mastery' ) ), 400 );
+			}
+			$result = GMM_Admin_Bookings::cancel( $booking_id );
+		} elseif ( current_user_can( 'manage_options' ) || gmm_is_teacher( $user_id ) ) {
 			$result = function_exists( 'gmm_teacher_cancel_booking' )
 				? gmm_teacher_cancel_booking( $booking_id, $user_id, '' )
 				: new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
@@ -729,9 +784,14 @@ class GMM_Ajax {
 		}
 
 		$booking_id = absint( $this->post( 'booking_id' ) );
-		$result     = function_exists( 'gmm_teacher_complete_booking' )
-			? gmm_teacher_complete_booking( $booking_id, get_current_user_id(), '' )
-			: new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
+
+		if ( current_user_can( 'manage_options' ) && class_exists( 'GMM_Admin_Bookings' ) ) {
+			$result = GMM_Admin_Bookings::complete( $booking_id );
+		} else {
+			$result = function_exists( 'gmm_teacher_complete_booking' )
+				? gmm_teacher_complete_booking( $booking_id, get_current_user_id(), '' )
+				: new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
+		}
 
 		$this->send_result( $result, __( 'Booking completed.', 'gospel-music-mastery' ) );
 	}
@@ -855,6 +915,82 @@ class GMM_Ajax {
 	}
 
 	/**
+	 * Admin booking detail payload.
+	 *
+	 * @return void
+	 */
+	public function get_booking_profile() {
+		$this->verify_request();
+		$this->require_admin();
+		$profile = class_exists( 'GMM_Admin_Bookings' )
+			? GMM_Admin_Bookings::get_profile( absint( $this->post( 'booking_id' ) ) )
+			: new WP_Error( 'gmm_missing', __( 'Booking management unavailable.', 'gospel-music-mastery' ) );
+		if ( is_wp_error( $profile ) ) {
+			wp_send_json_error( array( 'message' => $profile->get_error_message() ), 400 );
+		}
+		wp_send_json_success(
+			array(
+				'message' => __( 'Booking profile loaded.', 'gospel-music-mastery' ),
+				'profile' => $profile,
+			)
+		);
+	}
+
+	/**
+	 * Admin: update booking payment status (+ linked gmm_payments row).
+	 *
+	 * @return void
+	 */
+	public function admin_update_booking_payment() {
+		$this->verify_request();
+		$this->require_admin();
+		$result = class_exists( 'GMM_Admin_Bookings' )
+			? GMM_Admin_Bookings::set_payment_status(
+				absint( $this->post( 'booking_id' ) ),
+				sanitize_key( (string) $this->post( 'status' ) )
+			)
+			: new WP_Error( 'gmm_missing', __( 'Booking management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Payment status updated.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Admin: update booking status (confirm / complete / cancel / pending).
+	 *
+	 * @return void
+	 */
+	public function admin_update_booking_status() {
+		$this->verify_request();
+		$this->require_admin();
+
+		$status = sanitize_key( (string) $this->post( 'status' ) );
+		$id     = absint( $this->post( 'booking_id' ) );
+
+		if ( ! class_exists( 'GMM_Admin_Bookings' ) ) {
+			$this->send_result(
+				new WP_Error( 'gmm_missing', __( 'Booking management unavailable.', 'gospel-music-mastery' ) ),
+				''
+			);
+			return;
+		}
+
+		if ( 'cancelled' === $status && '1' !== (string) $this->post( 'confirm' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Confirmation required.', 'gospel-music-mastery' ) ), 400 );
+		}
+
+		if ( 'confirmed' === $status ) {
+			$result = GMM_Admin_Bookings::confirm( $id );
+		} elseif ( 'completed' === $status ) {
+			$result = GMM_Admin_Bookings::complete( $id );
+		} elseif ( 'cancelled' === $status ) {
+			$result = GMM_Admin_Bookings::cancel( $id );
+		} else {
+			$result = GMM_Admin_Bookings::set_booking_status( $id, $status );
+		}
+
+		$this->send_result( $result, __( 'Booking status updated.', 'gospel-music-mastery' ) );
+	}
+
+	/**
 	 * Soft delete preparation for allow-listed content types.
 	 *
 	 * @return void
@@ -915,12 +1051,108 @@ class GMM_Ajax {
 		$payment_id = absint( $this->post( 'payment_id' ) );
 		$status     = sanitize_key( (string) $this->post( 'status' ) );
 
+		if ( class_exists( 'GMM_Admin_Payments' ) ) {
+			$result = GMM_Admin_Payments::set_status( $payment_id, $status );
+			$this->send_result( $result, __( 'Payment status updated.', 'gospel-music-mastery' ) );
+			return;
+		}
+
 		if ( ! class_exists( 'GMM_Payment' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Payment system unavailable.', 'gospel-music-mastery' ) ), 500 );
 		}
 
 		$result = GMM_Payment::update_status( $payment_id, $status, '' );
 		$this->send_result( $result, __( 'Payment status updated.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Admin payment profile.
+	 *
+	 * @return void
+	 */
+	public function get_payment_profile() {
+		$this->verify_request();
+		$this->require_admin();
+		$profile = class_exists( 'GMM_Admin_Payments' )
+			? GMM_Admin_Payments::get_profile( absint( $this->post( 'payment_id' ) ) )
+			: new WP_Error( 'gmm_missing', __( 'Payment management unavailable.', 'gospel-music-mastery' ) );
+		if ( is_wp_error( $profile ) ) {
+			wp_send_json_error( array( 'message' => $profile->get_error_message() ), 400 );
+		}
+		wp_send_json_success(
+			array(
+				'message' => __( 'Payment profile loaded.', 'gospel-music-mastery' ),
+				'profile' => $profile,
+			)
+		);
+	}
+
+	/**
+	 * Admin payment status (alias action).
+	 *
+	 * @return void
+	 */
+	public function admin_update_payment_status() {
+		$this->update_payment_status();
+	}
+
+	/**
+	 * Approve refund request (no gateway).
+	 *
+	 * @return void
+	 */
+	public function admin_approve_refund() {
+		$this->verify_request();
+		$this->require_admin();
+		if ( '1' !== (string) $this->post( 'confirm' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Confirmation required.', 'gospel-music-mastery' ) ), 400 );
+		}
+		$result = class_exists( 'GMM_Admin_Payments' )
+			? GMM_Admin_Payments::approve_refund(
+				absint( $this->post( 'payment_id' ) ),
+				(int) $this->post( 'request_index' )
+			)
+			: new WP_Error( 'gmm_missing', __( 'Payment management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Refund approved.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Reject refund request.
+	 *
+	 * @return void
+	 */
+	public function admin_reject_refund() {
+		$this->verify_request();
+		$this->require_admin();
+		if ( '1' !== (string) $this->post( 'confirm' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Confirmation required.', 'gospel-music-mastery' ) ), 400 );
+		}
+		$result = class_exists( 'GMM_Admin_Payments' )
+			? GMM_Admin_Payments::reject_refund(
+				absint( $this->post( 'payment_id' ) ),
+				(int) $this->post( 'request_index' )
+			)
+			: new WP_Error( 'gmm_missing', __( 'Payment management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Refund rejected.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Prepare export rows JSON.
+	 *
+	 * @return void
+	 */
+	public function admin_payment_export() {
+		$this->verify_request();
+		$this->require_admin();
+		$rows = class_exists( 'GMM_Admin_Payments' )
+			? GMM_Admin_Payments::prepare_export_rows()
+			: array();
+		wp_send_json_success(
+			array(
+				'message' => __( 'Export prepared.', 'gospel-music-mastery' ),
+				'rows'    => $rows,
+			)
+		);
 	}
 
 	/* -------------------------------------------------------------------------
@@ -1011,11 +1243,29 @@ class GMM_Ajax {
 		}
 		$args['level']  = sanitize_key( (string) $this->post( 'level' ) );
 		$args['period'] = sanitize_key( (string) $this->post( 'period' ) );
+		$args['payment'] = sanitize_key( (string) $this->post( 'payment' ) );
+		$args['type']    = sanitize_key( (string) $this->post( 'type' ) );
+		$args['method']  = sanitize_key( (string) $this->post( 'method' ) );
 		if ( ! $args['level'] ) {
 			$args['level'] = sanitize_key( (string) $this->post( 'as_level' ) );
 		}
 		if ( ! $args['period'] ) {
 			$args['period'] = sanitize_key( (string) $this->post( 'as_period' ) );
+		}
+		if ( ! $args['period'] ) {
+			$args['period'] = sanitize_key( (string) $this->post( 'ab_date' ) );
+		}
+		if ( ! $args['period'] ) {
+			$args['period'] = sanitize_key( (string) $this->post( 'ap_date' ) );
+		}
+		if ( ! $args['payment'] ) {
+			$args['payment'] = sanitize_key( (string) $this->post( 'ab_payment' ) );
+		}
+		if ( ! $args['type'] ) {
+			$args['type'] = sanitize_key( (string) $this->post( 'ap_type' ) );
+		}
+		if ( ! $args['method'] ) {
+			$args['method'] = sanitize_key( (string) $this->post( 'ap_method' ) );
 		}
 		return $args;
 	}
@@ -1078,6 +1328,12 @@ class GMM_Ajax {
 		}
 		if ( class_exists( 'GMM_Admin_Classes' ) ) {
 			GMM_Admin_Classes::flush_cache();
+		}
+		if ( class_exists( 'GMM_Admin_Bookings' ) ) {
+			GMM_Admin_Bookings::flush_cache();
+		}
+		if ( class_exists( 'GMM_Admin_Payments' ) ) {
+			GMM_Admin_Payments::flush_cache();
 		}
 		wp_send_json_success( array( 'message' => $message, 'data' => $result ) );
 	}

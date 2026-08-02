@@ -99,9 +99,26 @@ class GMM_Admin_Pages {
 	}
 
 	/**
+	 * Native WordPress settings screen (basic config only).
+	 *
+	 * Management UIs remain on plugin dashboard pages / frozen frontend templates.
+	 *
 	 * @return void
 	 */
 	public static function render_settings() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die(
+				esc_html__( 'You do not have permission to manage Gospel Music Mastery settings.', 'gospel-music-mastery' ),
+				esc_html__( 'Access Denied', 'gospel-music-mastery' ),
+				array( 'response' => 403 )
+			);
+		}
+
+		if ( class_exists( 'GMM_Admin_Settings' ) ) {
+			GMM_Admin_Settings::render_page();
+			return;
+		}
+
 		gmm_admin_load_page( 'settings' );
 	}
 
@@ -173,10 +190,6 @@ class GMM_Admin_Pages {
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes its own output.
 		echo gmm_get_template( $template, $args );
-
-		if ( 'settings' === $page && class_exists( 'GMM_Admin_Settings' ) ) {
-			GMM_Admin_Settings::render_settings_form();
-		}
 
 		echo '</div>';
 
