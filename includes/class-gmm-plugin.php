@@ -105,6 +105,7 @@ class GMM_Plugin {
 	private function define_portal_hooks() {
 		GMM_Security::register_hooks( $this->loader );
 		GMM_Teacher::register_hooks( $this->loader );
+		GMM_Teacher_Auth::register_hooks( $this->loader );
 		GMM_Student::register_hooks( $this->loader );
 		GMM_Booking::register_hooks( $this->loader );
 		GMM_Payment::register_hooks( $this->loader );

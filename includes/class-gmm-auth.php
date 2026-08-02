@@ -27,8 +27,7 @@ class GMM_Auth {
 
 		$loader->add_action( 'admin_post_nopriv_gmm_student_register', $instance, 'handle_student_register' );
 		$loader->add_action( 'admin_post_gmm_student_register', $instance, 'handle_student_register' );
-		$loader->add_action( 'admin_post_nopriv_gmm_teacher_register', $instance, 'handle_teacher_register' );
-		$loader->add_action( 'admin_post_gmm_teacher_register', $instance, 'handle_teacher_register' );
+		// Teacher registration is owned by GMM_Teacher_Auth.
 		$loader->add_action( 'admin_post_nopriv_gmm_student_login', $instance, 'handle_student_login' );
 		$loader->add_action( 'admin_post_gmm_student_login', $instance, 'handle_student_login' );
 		$loader->add_action( 'admin_post_nopriv_gmm_teacher_login', $instance, 'handle_teacher_login' );
@@ -117,76 +116,17 @@ class GMM_Auth {
 	/**
 	 * Register a teacher user + gmm_teachers row.
 	 *
+	 * Delegates to GMM_Teacher_Auth (pending approval flow).
+	 *
 	 * @param array<string, mixed> $data  Registration fields.
 	 * @param string               $nonce Optional nonce.
 	 * @return int|WP_Error User ID.
 	 */
 	public static function teacher_register( $data, $nonce = '' ) {
-		if ( '' !== $nonce && ! self::verify_nonce( $nonce ) ) {
-			return new WP_Error( 'gmm_nonce', __( 'Invalid security token.', 'gospel-music-mastery' ) );
+		if ( class_exists( 'GMM_Teacher_Auth' ) ) {
+			return GMM_Teacher_Auth::register( $data, $nonce );
 		}
-
-		$data  = is_array( $data ) ? $data : array();
-		$clean = self::sanitize_registration_common( $data );
-		if ( is_wp_error( $clean ) ) {
-			return $clean;
-		}
-
-		$phone           = isset( $data['phone'] ) ? sanitize_text_field( (string) $data['phone'] ) : '';
-		$specialization  = isset( $data['specialization'] ) ? sanitize_text_field( (string) $data['specialization'] ) : '';
-		$experience      = isset( $data['experience'] ) ? sanitize_text_field( (string) $data['experience'] ) : '';
-		$bio             = isset( $data['bio'] ) ? wp_kses_post( (string) $data['bio'] ) : '';
-
-		$user_id = self::create_wp_user(
-			$clean['username'],
-			$clean['email'],
-			$clean['password'],
-			$clean['first_name'],
-			$clean['last_name'],
-			GMM_Roles::ROLE_TEACHER
-		);
-
-		if ( is_wp_error( $user_id ) ) {
-			return $user_id;
-		}
-
-		$profile = self::create_teacher_profile(
-			$user_id,
-			array(
-				'first_name'     => $clean['first_name'],
-				'last_name'      => $clean['last_name'],
-				'email'          => $clean['email'],
-				'phone'          => $phone,
-				'specialization' => $specialization,
-				'experience'     => $experience,
-				'bio'            => $bio,
-			)
-		);
-
-		if ( is_wp_error( $profile ) ) {
-			return $profile;
-		}
-
-		/**
-		 * Fires after teacher registration.
-		 *
-		 * @since 1.0.0
-		 * @param int                  $user_id User ID.
-		 * @param array<string, mixed> $clean   Sanitized core fields.
-		 */
-		do_action( 'gmm_teacher_registered', $user_id, $clean );
-
-		/**
-		 * Fires after any GMM user registration.
-		 *
-		 * @since 1.0.0
-		 * @param int                  $user_id User ID.
-		 * @param array<string, mixed> $clean   Sanitized core fields.
-		 * @param string               $role    Role key (gmm_student|gmm_teacher).
-		 */
-		do_action( 'gmm_user_registered', $user_id, $clean, GMM_Roles::ROLE_TEACHER );
-
-		return $user_id;
+		return new WP_Error( 'gmm_missing', __( 'Teacher registration system unavailable.', 'gospel-music-mastery' ) );
 	}
 
 	/**
@@ -344,12 +284,19 @@ class GMM_Auth {
 	public static function require_teacher() {
 		self::require_login( class_exists( 'GMM_Pages' ) ? GMM_Pages::get_page_url( 'teacher_login' ) : wp_login_url() );
 
-		if ( current_user_can( 'manage_options' ) || gmm_is_teacher() ) {
+		if ( current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
-		wp_safe_redirect( class_exists( 'GMM_Pages' ) ? GMM_Pages::get_page_url( 'teacher_login' ) : home_url( '/' ) );
-		exit;
+		if ( ! gmm_is_teacher() ) {
+			wp_safe_redirect( class_exists( 'GMM_Pages' ) ? GMM_Pages::get_page_url( 'teacher_login' ) : home_url( '/' ) );
+			exit;
+		}
+
+		if ( class_exists( 'GMM_Teacher_Auth' ) && ! GMM_Teacher_Auth::is_approved( get_current_user_id() ) ) {
+			$back = class_exists( 'GMM_Pages' ) ? GMM_Pages::get_page_url( 'teacher_login' ) : home_url( '/' );
+			self::redirect_with_flash( $back, 'error', __( 'Your account is waiting for approval.', 'gospel-music-mastery' ) );
+		}
 	}
 
 	/**
@@ -530,6 +477,12 @@ class GMM_Auth {
 				$html,
 				1
 			);
+			$html = preg_replace(
+				'/(id=["\']register-success["\'][^>]*>\s*(?:<i[^>]*>.*?<\/i>\s*)?<span>)(.*?)(<\/span>)/is',
+				'$1' . esc_html( $success ) . '$3',
+				$html,
+				1
+			);
 		}
 
 		return $html;
@@ -538,11 +491,6 @@ class GMM_Auth {
 	/** @return void */
 	public function handle_student_register() {
 		$this->process_register( 'student' );
-	}
-
-	/** @return void */
-	public function handle_teacher_register() {
-		$this->process_register( 'teacher' );
 	}
 
 	/** @return void */
@@ -611,6 +559,15 @@ class GMM_Auth {
 		if ( $user ) {
 			wp_set_current_user( $user->ID );
 			wp_set_auth_cookie( $user->ID, true, is_ssl() );
+
+			if ( 'teacher' === $type && class_exists( 'GMM_Teacher_Auth' ) && ! GMM_Teacher_Auth::is_approved( (int) $result ) ) {
+				self::redirect_with_flash(
+					$back,
+					'success',
+					__( 'Registration successful. Your account is waiting for approval.', 'gospel-music-mastery' )
+				);
+			}
+
 			$dest = self::get_login_redirect_url( $user );
 			wp_safe_redirect( $dest );
 			exit;

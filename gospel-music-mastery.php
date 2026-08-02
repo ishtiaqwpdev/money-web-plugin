@@ -74,6 +74,7 @@ require_once GMM_PATH . 'admin/gmm-admin-classes-functions.php';
 require_once GMM_PATH . 'admin/gmm-admin-bookings-functions.php';
 require_once GMM_PATH . 'admin/gmm-admin-payments-functions.php';
 require_once GMM_PATH . 'teacher/class-gmm-teacher.php';
+require_once GMM_PATH . 'teacher/class-gmm-teacher-auth.php';
 require_once GMM_PATH . 'teacher/class-gmm-teacher-classes.php';
 require_once GMM_PATH . 'teacher/class-gmm-availability.php';
 require_once GMM_PATH . 'teacher/gmm-teacher-functions.php';

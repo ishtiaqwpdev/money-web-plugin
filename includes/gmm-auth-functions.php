@@ -22,17 +22,20 @@ function gmm_student_register( $data, $nonce = '' ) {
 }
 
 /**
- * Register a teacher account.
+ * Register a teacher account (pending approval).
  *
  * @param array<string, mixed> $data  Fields.
  * @param string               $nonce Optional nonce.
  * @return int|WP_Error User ID.
  */
 function gmm_teacher_register( $data, $nonce = '' ) {
-	if ( ! class_exists( 'GMM_Auth' ) ) {
-		return new WP_Error( 'gmm_missing', __( 'Authentication system unavailable.', 'gospel-music-mastery' ) );
+	if ( class_exists( 'GMM_Teacher_Auth' ) ) {
+		return GMM_Teacher_Auth::register( $data, $nonce );
 	}
-	return GMM_Auth::teacher_register( $data, $nonce );
+	if ( class_exists( 'GMM_Auth' ) ) {
+		return GMM_Auth::teacher_register( $data, $nonce );
+	}
+	return new WP_Error( 'gmm_missing', __( 'Authentication system unavailable.', 'gospel-music-mastery' ) );
 }
 
 /**

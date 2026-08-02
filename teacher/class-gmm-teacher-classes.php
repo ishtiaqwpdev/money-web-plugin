@@ -29,6 +29,10 @@ class GMM_Teacher_Classes {
 			return $auth;
 		}
 
+		if ( class_exists( 'GMM_Teacher_Auth' ) && ! GMM_Teacher_Auth::is_approved( $user_id ) ) {
+			return new WP_Error( 'gmm_pending', __( 'Your account is waiting for approval.', 'gospel-music-mastery' ) );
+		}
+
 		$teacher_id = GMM_Teacher::get_teacher_id( $user_id );
 		if ( ! $teacher_id ) {
 			return new WP_Error( 'gmm_no_profile', __( 'Teacher profile not found.', 'gospel-music-mastery' ) );

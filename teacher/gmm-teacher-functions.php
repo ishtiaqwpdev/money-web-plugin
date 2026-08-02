@@ -8,6 +8,19 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Whether a teacher is approved for dashboard / teaching features.
+ *
+ * @param int $user_id Optional WP user ID.
+ * @return bool
+ */
+function gmm_teacher_is_approved( $user_id = 0 ) {
+	if ( ! class_exists( 'GMM_Teacher_Auth' ) ) {
+		return false;
+	}
+	return GMM_Teacher_Auth::is_approved( $user_id );
+}
+
+/**
  * Get teacher profile by WP user ID.
  *
  * @param int $user_id Optional. Defaults to current user.
