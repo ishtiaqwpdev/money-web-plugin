@@ -170,6 +170,11 @@ class GMM_Booking {
 			return new WP_Error( 'gmm_teacher_missing', __( 'Teacher not found.', 'gospel-music-mastery' ) );
 		}
 
+		// Suspended / non-approved teachers cannot receive new bookings.
+		if ( class_exists( 'GMM_Admin_Teachers' ) && ! GMM_Admin_Teachers::can_receive_bookings( $teacher_id ) ) {
+			return new WP_Error( 'gmm_teacher_unavailable', __( 'This teacher is not available for new bookings.', 'gospel-music-mastery' ) );
+		}
+
 		$start_ts = strtotime( $date . ' ' . $time );
 		if ( ! $start_ts ) {
 			return new WP_Error( 'gmm_invalid_slot', __( 'Invalid date or time.', 'gospel-music-mastery' ) );

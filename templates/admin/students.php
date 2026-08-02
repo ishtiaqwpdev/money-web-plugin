@@ -9,12 +9,65 @@
 
 defined( 'ABSPATH' ) || exit;
 
+if ( ! empty( $gmm_admin_denied ) ) {
+	echo '<div class="gmm-wrapper"><p>' . esc_html__( 'You do not have permission to manage students.', 'gospel-music-mastery' ) . '</p></div>';
+	return;
+}
+
 if ( ! isset( $user_name ) ) {
 	$user_name = 'Guest';
 }
 if ( ! isset( $user_first_name ) ) {
 	$user_first_name = $user_name;
 }
+if ( ! isset( $students ) || ! is_array( $students ) ) {
+	$students = array();
+}
+if ( ! isset( $student_stats ) || ! is_array( $student_stats ) ) {
+	$student_stats = array(
+		'total'     => 0,
+		'active'    => 0,
+		'new'       => 0,
+		'suspended' => 0,
+	);
+}
+if ( ! isset( $filters ) || ! is_array( $filters ) ) {
+	$filters = array(
+		'search' => '',
+		'status' => 'all',
+		'level'  => 'all',
+		'period' => 'all',
+		'page'   => 1,
+	);
+}
+if ( ! isset( $pagination ) || ! is_array( $pagination ) ) {
+	$pagination = array(
+		'page'        => 1,
+		'total'       => 0,
+		'total_pages' => 0,
+		'has_prev'    => false,
+		'has_next'    => false,
+		'prev_page'   => null,
+		'next_page'   => null,
+	);
+}
+if ( ! isset( $student_activity ) || ! is_array( $student_activity ) ) {
+	$student_activity = array();
+}
+if ( ! isset( $logout_url ) ) {
+	$logout_url = function_exists( 'gmm_logout_url' ) ? gmm_logout_url( home_url( '/' ) ) : wp_logout_url( home_url( '/' ) );
+}
+if ( ! isset( $last_login_label ) ) {
+	$last_login_label = __( 'Last login: Today', 'gospel-music-mastery' );
+}
+
+$filter_search = isset( $filters['search'] ) ? (string) $filters['search'] : '';
+$filter_status = isset( $filters['status'] ) ? (string) $filters['status'] : 'all';
+$filter_level  = isset( $filters['level'] ) ? (string) $filters['level'] : 'all';
+$filter_period = isset( $filters['period'] ) ? (string) $filters['period'] : 'all';
+$result_total  = isset( $pagination['total'] ) ? absint( $pagination['total'] ) : count( $students );
+$total_pages   = isset( $pagination['total_pages'] ) ? absint( $pagination['total_pages'] ) : 1;
+$current_page  = isset( $pagination['page'] ) ? absint( $pagination['page'] ) : 1;
 ?>
 <div class="gmm-wrapper gmm-dashboard gmm-admin">
 
@@ -33,7 +86,7 @@ if ( ! isset( $user_first_name ) ) {
                             <span class="sd-role">Platform Admin</span>
                             <div class="sd-profile-stats">
                                 <span class="sd-stat-item"><i class="far fa-shield-check"></i> Full Access</span>
-                                <span class="sd-stat-item"><i class="far fa-clock"></i> Last login: Today, 09:12 AM</span>
+                                <span class="sd-stat-item"><i class="far fa-clock"></i> <?php echo esc_html( $last_login_label ); ?></span>
                             </div>
                         </div>
                     </div>
@@ -80,7 +133,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <a class="dropdown-item ad-dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>"><i class="far fa-user"></i> <span>My Profile</span></a>
                                 <a class="dropdown-item ad-dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>"><i class="far fa-gear"></i> <span>Settings</span></a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item ad-dropdown-item is-logout" href="admin-login.html"><i class="far fa-right-from-bracket"></i> <span>Logout</span></a>
+                                <a class="dropdown-item ad-dropdown-item is-logout" href="<?php echo esc_url( $logout_url ); ?>"><i class="far fa-right-from-bracket"></i> <span>Logout</span></a>
                             </div>
                         </div>
                     </div>
@@ -115,7 +168,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_payments' ) ); ?>" class="sd-nav-link" data-nav="payments"><i class="far fa-credit-card"></i> Payments</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_programs' ) ); ?>" class="sd-nav-link" data-nav="programs"><i class="far fa-music"></i> Music Programs</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>" class="sd-nav-link" data-nav="settings"><i class="far fa-gear"></i> Settings</a></li>
-                                <li><a href="admin-login.html" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
+                                <li><a href="<?php echo esc_url( $logout_url ); ?>" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
                             </ul>
                         </nav>
                     </aside>
@@ -141,28 +194,28 @@ if ( ! isset( $user_first_name ) ) {
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-graduation-cap"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="1250" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) absint( $student_stats['total'] ) ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">Total Students</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-circle-check"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="1100" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) absint( $student_stats['active'] ) ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">Active Students</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-user-plus"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="85" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) absint( $student_stats['new'] ) ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">New Registrations</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card is-pending">
                                 <div class="sd-stat-icon"><i class="far fa-ban"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="15" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) absint( $student_stats['suspended'] ) ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">Suspended Accounts</span>
                                 </div>
                             </div>
@@ -203,41 +256,46 @@ if ( ! isset( $user_first_name ) ) {
                                         <h3>All Students</h3>
                                         <p>Search, filter, and manage student accounts.</p>
                                     </div>
-                                    <span class="sf-count-pill" id="as-result-count"><i class="far fa-graduation-cap"></i> <strong>8</strong> Shown</span>
+                                    <span class="sf-count-pill" id="as-result-count"><i class="far fa-graduation-cap"></i> <strong><?php echo esc_html( (string) $result_total ); ?></strong> Shown</span>
                                 </div>
 
                                 <!-- search & filters -->
-                                <form class="at-filter-bar" id="as-filter-form" action="#" method="get">
+                                <form class="at-filter-bar" id="as-filter-form" action="" method="get">
+                                    <?php if ( is_admin() ) : ?>
+                                        <input type="hidden" name="page" value="gmm-students">
+                                    <?php endif; ?>
                                     <div class="at-search-field">
                                         <i class="far fa-search" aria-hidden="true"></i>
-                                        <input type="search" class="form-control" id="as-search"
+                                        <input type="search" class="form-control" id="as-search" name="as_search"
+                                            value="<?php echo esc_attr( $filter_search ); ?>"
                                             placeholder="Search students by name or email..." autocomplete="off">
                                     </div>
                                     <div class="at-filter-selects">
                                         <div class="form-group mb-0">
                                             <label for="as-status" class="visually-hidden">Status</label>
-                                            <select class="form-control form-select" id="as-status">
-                                                <option value="all">All Status</option>
-                                                <option value="active">Active</option>
-                                                <option value="inactive">Inactive</option>
-                                                <option value="suspended">Suspended</option>
+                                            <select class="form-control form-select" id="as-status" name="as_status">
+                                                <option value="all" <?php selected( $filter_status, 'all' ); ?>>All Status</option>
+                                                <option value="active" <?php selected( $filter_status, 'active' ); ?>>Active</option>
+                                                <option value="inactive" <?php selected( $filter_status, 'inactive' ); ?>>Inactive</option>
+                                                <option value="suspended" <?php selected( $filter_status, 'suspended' ); ?>>Suspended</option>
                                             </select>
                                         </div>
                                         <div class="form-group mb-0">
                                             <label for="as-level" class="visually-hidden">Learning Level</label>
-                                            <select class="form-control form-select" id="as-level">
-                                                <option value="all">All Levels</option>
-                                                <option value="beginner">Beginner</option>
-                                                <option value="intermediate">Intermediate</option>
-                                                <option value="advanced">Advanced</option>
+                                            <select class="form-control form-select" id="as-level" name="as_level">
+                                                <option value="all" <?php selected( $filter_level, 'all' ); ?>>All Levels</option>
+                                                <option value="beginner" <?php selected( $filter_level, 'beginner' ); ?>>Beginner</option>
+                                                <option value="intermediate" <?php selected( $filter_level, 'intermediate' ); ?>>Intermediate</option>
+                                                <option value="advanced" <?php selected( $filter_level, 'advanced' ); ?>>Advanced</option>
                                             </select>
                                         </div>
                                         <div class="form-group mb-0">
                                             <label for="as-period" class="visually-hidden">Registration Date</label>
-                                            <select class="form-control form-select" id="as-period">
-                                                <option value="all">All Time</option>
-                                                <option value="month">This Month</option>
-                                                <option value="year">This Year</option>
+                                            <select class="form-control form-select" id="as-period" name="as_period">
+                                                <option value="all" <?php selected( $filter_period, 'all' ); ?>>All Time</option>
+                                                <option value="today" <?php selected( $filter_period, 'today' ); ?>>Today</option>
+                                                <option value="month" <?php selected( $filter_period, 'month' ); ?>>This Month</option>
+                                                <option value="year" <?php selected( $filter_period, 'year' ); ?>>This Year</option>
                                             </select>
                                         </div>
                                         <button type="submit" class="theme-btn" id="as-filter-btn">
@@ -246,7 +304,7 @@ if ( ! isset( $user_first_name ) ) {
                                     </div>
                                 </form>
 
-                                <div class="table-responsive td-table-wrap" id="as-table-wrap">
+                                <div class="table-responsive td-table-wrap" id="as-table-wrap" <?php echo empty( $students ) ? 'hidden' : ''; ?>>
                                     <table class="table td-table sb-table at-table">
                                         <thead>
                                             <tr>
@@ -262,32 +320,69 @@ if ( ! isset( $user_first_name ) ) {
                                             </tr>
                                         </thead>
                                         <tbody id="as-table-body">
-
+                                            <?php if ( empty( $students ) ) : ?>
+                                            <?php else : ?>
+                                                <?php foreach ( $students as $student ) : ?>
+                                                    <?php
+                                                    $sid   = isset( $student['id'] ) ? absint( $student['id'] ) : 0;
+                                                    $sname = isset( $student['name'] ) ? (string) $student['name'] : '';
+                                                    $semail = isset( $student['email'] ) ? (string) $student['email'] : '';
+                                                    $sphone = isset( $student['phone'] ) ? (string) $student['phone'] : '';
+                                                    $sstatus = isset( $student['status'] ) ? (string) $student['status'] : 'active';
+                                                    $slevel = isset( $student['level'] ) ? (string) $student['level'] : 'all';
+                                                    $slevel_label = isset( $student['level_label'] ) ? (string) $student['level_label'] : '';
+                                                    $speriod = isset( $student['period'] ) ? (string) $student['period'] : 'year';
+                                                    $sinstruments = isset( $student['instruments'] ) ? (string) $student['instruments'] : '';
+                                                    $sclasses = isset( $student['classes'] ) ? absint( $student['classes'] ) : 0;
+                                                    $slessons = isset( $student['lessons'] ) ? absint( $student['lessons'] ) : 0;
+                                                    $sbookings = isset( $student['bookings'] ) ? absint( $student['bookings'] ) : 0;
+                                                    $sjoined = isset( $student['joined'] ) ? (string) $student['joined'] : '';
+                                                    $sbio = isset( $student['bio'] ) ? (string) $student['bio'] : '';
+                                                    $sgoals = isset( $student['learning_goals'] ) ? (string) $student['learning_goals'] : '';
+                                                    $simg = isset( $student['image'] ) ? (string) $student['image'] : '';
+                                                    $sstatus_label = isset( $student['status_label'] ) ? (string) $student['status_label'] : '';
+                                                    $sstatus_class = isset( $student['status_class'] ) ? (string) $student['status_class'] : 'is-confirmed';
+                                                    $sfirst = isset( $student['first_name'] ) ? (string) $student['first_name'] : '';
+                                                    $slast = isset( $student['last_name'] ) ? (string) $student['last_name'] : '';
+                                                    $sactivity = sprintf(
+                                                        'Total bookings: %1$d|Completed lessons: %2$d|Learning level: %3$s|Status: %4$s',
+                                                        $sbookings,
+                                                        $slessons,
+                                                        $slevel_label,
+                                                        $sstatus_label
+                                                    );
+                                                    ?>
                                             <tr class="as-row"
-                                                data-name="Sarah Johnson"
-                                                data-email="sarah@email.com"
-                                                data-phone="+1 555 123456"
-                                                data-status="active"
-                                                data-level="intermediate"
-                                                data-period="year"
-                                                data-instruments="Gospel Piano, Worship Vocals"
-                                                data-classes="5"
-                                                data-completed="24"
-                                                data-joined="Jan 08, 2026"
-                                                data-bio="Intermediate student focused on worship piano skills and Sunday service confidence."
-                                                data-image="assets/img/team/02.jpg"
-                                                data-activity="Booked new lesson|Completed class|Added favourite teacher|Payment completed">
-                                                <td data-label="Profile"><img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="Sarah Johnson"></td>
-                                                <td data-label="Name"><strong>Sarah Johnson</strong></td>
-                                                <td data-label="Email">sarah@email.com</td>
-                                                <td data-label="Phone">+1 555 123456</td>
-                                                <td data-label="Learning Level">Intermediate</td>
-                                                <td data-label="Enrolled Classes">5 Classes</td>
-                                                <td data-label="Status"><span class="sb-badge is-confirmed as-status">Active</span></td>
-                                                <td data-label="Joined Date">Jan 08, 2026</td>
+                                                data-student-id="<?php echo esc_attr( (string) $sid ); ?>"
+                                                data-name="<?php echo esc_attr( $sname ); ?>"
+                                                data-first-name="<?php echo esc_attr( $sfirst ); ?>"
+                                                data-last-name="<?php echo esc_attr( $slast ); ?>"
+                                                data-email="<?php echo esc_attr( $semail ); ?>"
+                                                data-phone="<?php echo esc_attr( $sphone ); ?>"
+                                                data-status="<?php echo esc_attr( $sstatus ); ?>"
+                                                data-level="<?php echo esc_attr( $slevel ); ?>"
+                                                data-level-label="<?php echo esc_attr( $slevel_label ); ?>"
+                                                data-period="<?php echo esc_attr( $speriod ); ?>"
+                                                data-instruments="<?php echo esc_attr( $sinstruments ); ?>"
+                                                data-classes="<?php echo esc_attr( (string) $sclasses ); ?>"
+                                                data-completed="<?php echo esc_attr( (string) $slessons ); ?>"
+                                                data-bookings="<?php echo esc_attr( (string) $sbookings ); ?>"
+                                                data-joined="<?php echo esc_attr( $sjoined ); ?>"
+                                                data-bio="<?php echo esc_attr( $sbio ); ?>"
+                                                data-goals="<?php echo esc_attr( $sgoals ); ?>"
+                                                data-image="<?php echo esc_url( $simg ); ?>"
+                                                data-activity="<?php echo esc_attr( $sactivity ); ?>">
+                                                <td data-label="Profile"><img class="at-avatar" src="<?php echo esc_url( $simg ); ?>" alt="<?php echo esc_attr( $sname ); ?>"></td>
+                                                <td data-label="Name"><strong><?php echo esc_html( $sname ); ?></strong></td>
+                                                <td data-label="Email"><?php echo esc_html( $semail ); ?></td>
+                                                <td data-label="Phone"><?php echo esc_html( $sphone ? $sphone : '—' ); ?></td>
+                                                <td data-label="Learning Level"><?php echo esc_html( $slevel_label ); ?></td>
+                                                <td data-label="Enrolled Classes"><?php echo esc_html( (string) $sclasses ); ?> Classes</td>
+                                                <td data-label="Status"><span class="sb-badge <?php echo esc_attr( $sstatus_class ); ?> as-status"><?php echo esc_html( $sstatus_label ); ?></span></td>
+                                                <td data-label="Joined Date"><?php echo esc_html( $sjoined ); ?></td>
                                                 <td data-label="Action">
                                                     <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Sarah Johnson">
+                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="<?php echo esc_attr( sprintf( 'Actions for %s', $sname ) ); ?>">
                                                             <i class="far fa-ellipsis-vertical"></i>
                                                         </button>
                                                         <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
@@ -302,307 +397,46 @@ if ( ! isset( $user_first_name ) ) {
                                                     </div>
                                                 </td>
                                             </tr>
-
-                                            <tr class="as-row"
-                                                data-name="David Wilson"
-                                                data-email="david@email.com"
-                                                data-phone="+1 555 456789"
-                                                data-status="active"
-                                                data-level="beginner"
-                                                data-period="month"
-                                                data-instruments="Piano"
-                                                data-classes="2"
-                                                data-completed="4"
-                                                data-joined="Mar 12, 2026"
-                                                data-bio="Beginner learner starting gospel piano fundamentals and chord progressions."
-                                                data-image="assets/img/team/05.jpg"
-                                                data-activity="Booked new lesson|Payment completed|Completed class|Added favourite teacher">
-                                                <td data-label="Profile"><img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/05.jpg' ) ); ?>" alt="David Wilson"></td>
-                                                <td data-label="Name"><strong>David Wilson</strong></td>
-                                                <td data-label="Email">david@email.com</td>
-                                                <td data-label="Phone">+1 555 456789</td>
-                                                <td data-label="Learning Level">Beginner</td>
-                                                <td data-label="Enrolled Classes">2 Classes</td>
-                                                <td data-label="Status"><span class="sb-badge is-confirmed as-status">Active</span></td>
-                                                <td data-label="Joined Date">Mar 12, 2026</td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for David Wilson">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-edit-btn"><i class="far fa-pen"></i> <span>Edit Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-lessons-btn"><i class="far fa-book-open"></i> <span>View Lessons</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-payments-btn"><i class="far fa-credit-card"></i> <span>View Payments</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-suspend-btn"><i class="far fa-ban"></i> <span>Suspend Account</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item is-logout as-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="as-row"
-                                                data-name="Michael Brown"
-                                                data-email="michael@email.com"
-                                                data-phone="+1 555 987654"
-                                                data-status="suspended"
-                                                data-level="advanced"
-                                                data-period="year"
-                                                data-instruments="Guitar, Music Theory"
-                                                data-classes="8"
-                                                data-completed="42"
-                                                data-joined="Sep 03, 2025"
-                                                data-bio="Advanced guitar student focusing on worship band arranging and improvisation."
-                                                data-image="assets/img/team/04.jpg"
-                                                data-activity="Payment completed|Completed class|Booked new lesson|Added favourite teacher">
-                                                <td data-label="Profile"><img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/04.jpg' ) ); ?>" alt="Michael Brown"></td>
-                                                <td data-label="Name"><strong>Michael Brown</strong></td>
-                                                <td data-label="Email">michael@email.com</td>
-                                                <td data-label="Phone">+1 555 987654</td>
-                                                <td data-label="Learning Level">Advanced</td>
-                                                <td data-label="Enrolled Classes">8 Classes</td>
-                                                <td data-label="Status"><span class="sb-badge is-suspended as-status">Suspended</span></td>
-                                                <td data-label="Joined Date">Sep 03, 2025</td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Michael Brown">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-edit-btn"><i class="far fa-pen"></i> <span>Edit Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-lessons-btn"><i class="far fa-book-open"></i> <span>View Lessons</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-payments-btn"><i class="far fa-credit-card"></i> <span>View Payments</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-suspend-btn"><i class="far fa-ban"></i> <span>Suspend Account</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item is-logout as-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="as-row"
-                                                data-name="Emily Carter"
-                                                data-email="emily.c@email.com"
-                                                data-phone="+1 555 222333"
-                                                data-status="inactive"
-                                                data-level="intermediate"
-                                                data-period="year"
-                                                data-instruments="Vocals"
-                                                data-classes="3"
-                                                data-completed="11"
-                                                data-joined="Nov 19, 2025"
-                                                data-bio="Inactive vocal student who previously trained for church choir leadership."
-                                                data-image="assets/img/team/03.jpg"
-                                                data-activity="Completed class|Added favourite teacher|Payment completed|Booked new lesson">
-                                                <td data-label="Profile"><img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/03.jpg' ) ); ?>" alt="Emily Carter"></td>
-                                                <td data-label="Name"><strong>Emily Carter</strong></td>
-                                                <td data-label="Email">emily.c@email.com</td>
-                                                <td data-label="Phone">+1 555 222333</td>
-                                                <td data-label="Learning Level">Intermediate</td>
-                                                <td data-label="Enrolled Classes">3 Classes</td>
-                                                <td data-label="Status"><span class="sb-badge is-inactive as-status">Inactive</span></td>
-                                                <td data-label="Joined Date">Nov 19, 2025</td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Emily Carter">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-edit-btn"><i class="far fa-pen"></i> <span>Edit Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-lessons-btn"><i class="far fa-book-open"></i> <span>View Lessons</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-payments-btn"><i class="far fa-credit-card"></i> <span>View Payments</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-suspend-btn"><i class="far fa-ban"></i> <span>Suspend Account</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item is-logout as-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="as-row"
-                                                data-name="Olivia Martin"
-                                                data-email="olivia@email.com"
-                                                data-phone="+1 555 444555"
-                                                data-status="active"
-                                                data-level="advanced"
-                                                data-period="month"
-                                                data-instruments="Vocals, Piano"
-                                                data-classes="6"
-                                                data-completed="31"
-                                                data-joined="Mar 01, 2026"
-                                                data-bio="Advanced worship vocalist refining range, harmony, and stage leadership."
-                                                data-image="assets/img/team/07.jpg"
-                                                data-activity="Added favourite teacher|Booked new lesson|Payment completed|Completed class">
-                                                <td data-label="Profile"><img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/07.jpg' ) ); ?>" alt="Olivia Martin"></td>
-                                                <td data-label="Name"><strong>Olivia Martin</strong></td>
-                                                <td data-label="Email">olivia@email.com</td>
-                                                <td data-label="Phone">+1 555 444555</td>
-                                                <td data-label="Learning Level">Advanced</td>
-                                                <td data-label="Enrolled Classes">6 Classes</td>
-                                                <td data-label="Status"><span class="sb-badge is-confirmed as-status">Active</span></td>
-                                                <td data-label="Joined Date">Mar 01, 2026</td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Olivia Martin">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-edit-btn"><i class="far fa-pen"></i> <span>Edit Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-lessons-btn"><i class="far fa-book-open"></i> <span>View Lessons</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-payments-btn"><i class="far fa-credit-card"></i> <span>View Payments</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-suspend-btn"><i class="far fa-ban"></i> <span>Suspend Account</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item is-logout as-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="as-row"
-                                                data-name="James Carter"
-                                                data-email="james.c@email.com"
-                                                data-phone="+1 555 666777"
-                                                data-status="active"
-                                                data-level="beginner"
-                                                data-period="month"
-                                                data-instruments="Drums"
-                                                data-classes="1"
-                                                data-completed="2"
-                                                data-joined="Mar 18, 2026"
-                                                data-bio="New drum student learning worship grooves and live tempo control."
-                                                data-image="assets/img/team/06.jpg"
-                                                data-activity="Booked new lesson|Payment completed|Added favourite teacher|Completed class">
-                                                <td data-label="Profile"><img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/06.jpg' ) ); ?>" alt="James Carter"></td>
-                                                <td data-label="Name"><strong>James Carter</strong></td>
-                                                <td data-label="Email">james.c@email.com</td>
-                                                <td data-label="Phone">+1 555 666777</td>
-                                                <td data-label="Learning Level">Beginner</td>
-                                                <td data-label="Enrolled Classes">1 Class</td>
-                                                <td data-label="Status"><span class="sb-badge is-confirmed as-status">Active</span></td>
-                                                <td data-label="Joined Date">Mar 18, 2026</td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for James Carter">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-edit-btn"><i class="far fa-pen"></i> <span>Edit Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-lessons-btn"><i class="far fa-book-open"></i> <span>View Lessons</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-payments-btn"><i class="far fa-credit-card"></i> <span>View Payments</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-suspend-btn"><i class="far fa-ban"></i> <span>Suspend Account</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item is-logout as-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="as-row"
-                                                data-name="Daniel Brooks"
-                                                data-email="daniel.b@email.com"
-                                                data-phone="+1 555 888999"
-                                                data-status="active"
-                                                data-level="intermediate"
-                                                data-period="year"
-                                                data-instruments="Music Theory, Piano"
-                                                data-classes="4"
-                                                data-completed="16"
-                                                data-joined="Jul 22, 2025"
-                                                data-bio="Theory-focused student building harmony skills for songwriting and team rehearsals."
-                                                data-image="assets/img/team/08.jpg"
-                                                data-activity="Completed class|Booked new lesson|Payment completed|Added favourite teacher">
-                                                <td data-label="Profile"><img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/08.jpg' ) ); ?>" alt="Daniel Brooks"></td>
-                                                <td data-label="Name"><strong>Daniel Brooks</strong></td>
-                                                <td data-label="Email">daniel.b@email.com</td>
-                                                <td data-label="Phone">+1 555 888999</td>
-                                                <td data-label="Learning Level">Intermediate</td>
-                                                <td data-label="Enrolled Classes">4 Classes</td>
-                                                <td data-label="Status"><span class="sb-badge is-confirmed as-status">Active</span></td>
-                                                <td data-label="Joined Date">Jul 22, 2025</td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Daniel Brooks">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-edit-btn"><i class="far fa-pen"></i> <span>Edit Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-lessons-btn"><i class="far fa-book-open"></i> <span>View Lessons</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-payments-btn"><i class="far fa-credit-card"></i> <span>View Payments</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-suspend-btn"><i class="far fa-ban"></i> <span>Suspend Account</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item is-logout as-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="as-row"
-                                                data-name="Hannah Lee"
-                                                data-email="hannah@email.com"
-                                                data-phone="+1 555 101112"
-                                                data-status="suspended"
-                                                data-level="beginner"
-                                                data-period="year"
-                                                data-instruments="Piano"
-                                                data-classes="2"
-                                                data-completed="3"
-                                                data-joined="Dec 04, 2025"
-                                                data-bio="Beginner piano student currently suspended pending account review."
-                                                data-image="assets/img/team/02.jpg"
-                                                data-activity="Payment completed|Booked new lesson|Completed class|Added favourite teacher">
-                                                <td data-label="Profile"><img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="Hannah Lee"></td>
-                                                <td data-label="Name"><strong>Hannah Lee</strong></td>
-                                                <td data-label="Email">hannah@email.com</td>
-                                                <td data-label="Phone">+1 555 101112</td>
-                                                <td data-label="Learning Level">Beginner</td>
-                                                <td data-label="Enrolled Classes">2 Classes</td>
-                                                <td data-label="Status"><span class="sb-badge is-suspended as-status">Suspended</span></td>
-                                                <td data-label="Joined Date">Dec 04, 2025</td>
-                                                <td data-label="Action">
-                                                    <div class="dropdown at-action-dropdown">
-                                                        <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Hannah Lee">
-                                                            <i class="far fa-ellipsis-vertical"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-edit-btn"><i class="far fa-pen"></i> <span>Edit Student</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-lessons-btn"><i class="far fa-book-open"></i> <span>View Lessons</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-payments-btn"><i class="far fa-credit-card"></i> <span>View Payments</span></button></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item as-suspend-btn"><i class="far fa-ban"></i> <span>Suspend Account</span></button></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><button type="button" class="dropdown-item ad-dropdown-item is-logout as-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
 
                                         </tbody>
                                     </table>
                                 </div>
 
-                                <div class="sl-empty" id="as-empty" hidden>
+                                <div class="sl-empty" id="as-empty" <?php echo empty( $students ) ? '' : 'hidden'; ?>>
                                     <i class="far fa-graduation-cap"></i>
                                     <h3>No students found.</h3>
                                     <p>Try adjusting your search or filter options.</p>
                                 </div>
 
-                                <nav class="at-pagination" id="as-pagination" aria-label="Students pagination">
+                                <?php
+                                $show_pagination = $total_pages > 1;
+                                $prev_disabled   = empty( $pagination['has_prev'] );
+                                $next_disabled   = empty( $pagination['has_next'] );
+                                $prev_url = ( ! $prev_disabled && ! empty( $pagination['prev_page'] ) && function_exists( 'gmm_admin_students_page_url' ) )
+                                    ? gmm_admin_students_page_url( (int) $pagination['prev_page'], $filters )
+                                    : '#';
+                                $next_url = ( ! $next_disabled && ! empty( $pagination['next_page'] ) && function_exists( 'gmm_admin_students_page_url' ) )
+                                    ? gmm_admin_students_page_url( (int) $pagination['next_page'], $filters )
+                                    : '#';
+                                ?>
+                                <nav class="at-pagination" id="as-pagination" aria-label="Students pagination" <?php echo $show_pagination ? '' : 'hidden'; ?>>
                                     <ul class="pagination justify-content-center mb-0">
-                                        <li class="page-item disabled" id="as-page-prev">
-                                            <a class="page-link" href="#" data-page="prev" aria-label="Previous"><i class="far fa-angle-left"></i> Previous</a>
+                                        <li class="page-item<?php echo $prev_disabled ? ' disabled' : ''; ?>" id="as-page-prev">
+                                            <a class="page-link" href="<?php echo esc_url( $prev_url ); ?>" data-page="prev" aria-label="Previous"><i class="far fa-angle-left"></i> Previous</a>
                                         </li>
-                                        <li class="page-item active"><a class="page-link" href="#" data-page="1">1</a></li>
-                                        <li class="page-item"><a class="page-link" href="#" data-page="2">2</a></li>
-                                        <li class="page-item"><a class="page-link" href="#" data-page="3">3</a></li>
-                                        <li class="page-item" id="as-page-next">
-                                            <a class="page-link" href="#" data-page="next" aria-label="Next">Next <i class="far fa-angle-right"></i></a>
+                                        <?php
+                                        $start_p = max( 1, $current_page - 2 );
+                                        $end_p   = min( $total_pages, $start_p + 4 );
+                                        $start_p = max( 1, $end_p - 4 );
+                                        for ( $p = $start_p; $p <= $end_p; $p++ ) :
+                                            $p_url = function_exists( 'gmm_admin_students_page_url' ) ? gmm_admin_students_page_url( $p, $filters ) : '#';
+                                            ?>
+                                        <li class="page-item<?php echo ( $p === $current_page ) ? ' active' : ''; ?>"><a class="page-link" href="<?php echo esc_url( $p_url ); ?>" data-page="<?php echo esc_attr( (string) $p ); ?>"><?php echo esc_html( (string) $p ); ?></a></li>
+                                        <?php endfor; ?>
+                                        <li class="page-item<?php echo $next_disabled ? ' disabled' : ''; ?>" id="as-page-next">
+                                            <a class="page-link" href="<?php echo esc_url( $next_url ); ?>" data-page="next" aria-label="Next">Next <i class="far fa-angle-right"></i></a>
                                         </li>
                                     </ul>
                                 </nav>
@@ -617,34 +451,25 @@ if ( ! isset( $user_first_name ) ) {
                                     </div>
                                 </div>
                                 <ul class="as-activity-list" id="as-activity-list">
+                                    <?php if ( empty( $student_activity ) ) : ?>
                                     <li>
-                                        <span class="as-activity-icon"><i class="far fa-calendar-plus"></i></span>
+                                        <span class="as-activity-icon"><i class="far fa-bell"></i></span>
                                         <div>
-                                            <strong>Booked new lesson</strong>
-                                            <small>Sarah Johnson · 12 min ago</small>
+                                            <strong><?php echo esc_html__( 'No recent activity', 'gospel-music-mastery' ); ?></strong>
+                                            <small><?php echo esc_html__( 'Student activity will appear here.', 'gospel-music-mastery' ); ?></small>
                                         </div>
                                     </li>
+                                    <?php else : ?>
+                                        <?php foreach ( $student_activity as $act ) : ?>
                                     <li>
-                                        <span class="as-activity-icon"><i class="far fa-circle-check"></i></span>
+                                        <span class="as-activity-icon"><i class="<?php echo esc_attr( isset( $act['icon'] ) ? $act['icon'] : 'far fa-bell' ); ?>"></i></span>
                                         <div>
-                                            <strong>Completed class</strong>
-                                            <small>Daniel Brooks · 1 hour ago</small>
+                                            <strong><?php echo esc_html( isset( $act['title'] ) ? $act['title'] : '' ); ?></strong>
+                                            <small><?php echo esc_html( isset( $act['meta'] ) ? $act['meta'] : '' ); ?></small>
                                         </div>
                                     </li>
-                                    <li>
-                                        <span class="as-activity-icon"><i class="far fa-heart"></i></span>
-                                        <div>
-                                            <strong>Added favourite teacher</strong>
-                                            <small>Olivia Martin · 3 hours ago</small>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <span class="as-activity-icon"><i class="far fa-credit-card"></i></span>
-                                        <div>
-                                            <strong>Payment completed</strong>
-                                            <small>David Wilson · Today, 09:40 AM</small>
-                                        </div>
-                                    </li>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </ul>
                             </aside>
 
@@ -715,7 +540,7 @@ if ( ! isset( $user_first_name ) ) {
     <!-- demo toast -->
     <div class="gospel-alert gospel-alert-success sl-toast" id="as-toast" hidden>
         <i class="far fa-circle-check"></i>
-        <span id="as-toast-text">Action completed (demo).</span>
+        <span id="as-toast-text">Action completed.</span>
     </div>
 
 

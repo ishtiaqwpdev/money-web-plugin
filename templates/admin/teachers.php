@@ -9,12 +9,60 @@
 
 defined( 'ABSPATH' ) || exit;
 
+if ( ! empty( $gmm_admin_denied ) ) {
+	echo '<div class="gmm-wrapper"><p>' . esc_html__( 'You do not have permission to manage teachers.', 'gospel-music-mastery' ) . '</p></div>';
+	return;
+}
+
 if ( ! isset( $user_name ) ) {
 	$user_name = 'Guest';
 }
 if ( ! isset( $user_first_name ) ) {
 	$user_first_name = $user_name;
 }
+if ( ! isset( $teachers ) || ! is_array( $teachers ) ) {
+	$teachers = array();
+}
+if ( ! isset( $teacher_stats ) || ! is_array( $teacher_stats ) ) {
+	$teacher_stats = array(
+		'total'     => 0,
+		'pending'   => 0,
+		'approved'  => 0,
+		'suspended' => 0,
+	);
+}
+if ( ! isset( $filters ) || ! is_array( $filters ) ) {
+	$filters = array(
+		'search'    => '',
+		'status'    => 'all',
+		'specialty' => 'all',
+		'page'      => 1,
+	);
+}
+if ( ! isset( $pagination ) || ! is_array( $pagination ) ) {
+	$pagination = array(
+		'page'        => 1,
+		'total'       => 0,
+		'total_pages' => 0,
+		'has_prev'    => false,
+		'has_next'    => false,
+		'prev_page'   => null,
+		'next_page'   => null,
+	);
+}
+if ( ! isset( $logout_url ) ) {
+	$logout_url = function_exists( 'gmm_logout_url' ) ? gmm_logout_url( home_url( '/' ) ) : wp_logout_url( home_url( '/' ) );
+}
+if ( ! isset( $last_login_label ) ) {
+	$last_login_label = __( 'Last login: Today', 'gospel-music-mastery' );
+}
+
+$filter_search    = isset( $filters['search'] ) ? (string) $filters['search'] : '';
+$filter_status    = isset( $filters['status'] ) ? (string) $filters['status'] : 'all';
+$filter_specialty = isset( $filters['specialty'] ) ? (string) $filters['specialty'] : 'all';
+$result_total     = isset( $pagination['total'] ) ? absint( $pagination['total'] ) : count( $teachers );
+$total_pages      = isset( $pagination['total_pages'] ) ? absint( $pagination['total_pages'] ) : 1;
+$current_page     = isset( $pagination['page'] ) ? absint( $pagination['page'] ) : 1;
 ?>
 <div class="gmm-wrapper gmm-dashboard gmm-admin">
 
@@ -33,7 +81,7 @@ if ( ! isset( $user_first_name ) ) {
                             <span class="sd-role">Platform Admin</span>
                             <div class="sd-profile-stats">
                                 <span class="sd-stat-item"><i class="far fa-shield-check"></i> Full Access</span>
-                                <span class="sd-stat-item"><i class="far fa-clock"></i> Last login: Today, 09:12 AM</span>
+                                <span class="sd-stat-item"><i class="far fa-clock"></i> <?php echo esc_html( $last_login_label ); ?></span>
                             </div>
                         </div>
                     </div>
@@ -80,7 +128,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <a class="dropdown-item ad-dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>"><i class="far fa-user"></i> <span>My Profile</span></a>
                                 <a class="dropdown-item ad-dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>"><i class="far fa-gear"></i> <span>Settings</span></a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item ad-dropdown-item is-logout" href="admin-login.html"><i class="far fa-right-from-bracket"></i> <span>Logout</span></a>
+                                <a class="dropdown-item ad-dropdown-item is-logout" href="<?php echo esc_url( $logout_url ); ?>"><i class="far fa-right-from-bracket"></i> <span>Logout</span></a>
                             </div>
                         </div>
                     </div>
@@ -115,7 +163,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_payments' ) ); ?>" class="sd-nav-link" data-nav="payments"><i class="far fa-credit-card"></i> Payments</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_programs' ) ); ?>" class="sd-nav-link" data-nav="programs"><i class="far fa-music"></i> Music Programs</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'admin_settings' ) ); ?>" class="sd-nav-link" data-nav="settings"><i class="far fa-gear"></i> Settings</a></li>
-                                <li><a href="admin-login.html" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
+                                <li><a href="<?php echo esc_url( $logout_url ); ?>" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
                             </ul>
                         </nav>
                     </aside>
@@ -141,28 +189,28 @@ if ( ! isset( $user_first_name ) ) {
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-chalkboard-user"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="85" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) absint( $teacher_stats['total'] ) ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">Total Teachers</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card is-pending">
                                 <div class="sd-stat-icon"><i class="far fa-clock"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="15" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) absint( $teacher_stats['pending'] ) ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">Pending Approval</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-circle-check"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="65" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) absint( $teacher_stats['approved'] ) ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">Approved Teachers</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card ad-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-ban"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value ad-counter" data-count="5" data-format="number">0</span>
+                                    <span class="sd-stat-value ad-counter" data-count="<?php echo esc_attr( (string) absint( $teacher_stats['suspended'] ) ); ?>" data-format="number">0</span>
                                     <span class="sd-stat-title">Suspended</span>
                                 </div>
                             </div>
@@ -201,36 +249,40 @@ if ( ! isset( $user_first_name ) ) {
                                     <h3>All Teachers</h3>
                                     <p>Search, filter, and manage instructor accounts.</p>
                                 </div>
-                                <span class="sf-count-pill" id="at-result-count"><i class="far fa-chalkboard-user"></i> <strong>8</strong> Shown</span>
+                                <span class="sf-count-pill" id="at-result-count"><i class="far fa-chalkboard-user"></i> <strong><?php echo esc_html( (string) $result_total ); ?></strong> Shown</span>
                             </div>
 
                             <!-- search & filters -->
-                            <form class="at-filter-bar" id="at-filter-form" action="#" method="get">
+                            <form class="at-filter-bar" id="at-filter-form" action="" method="get">
+                                <?php if ( is_admin() ) : ?>
+                                    <input type="hidden" name="page" value="gmm-teachers">
+                                <?php endif; ?>
                                 <div class="at-search-field">
                                     <i class="far fa-search" aria-hidden="true"></i>
-                                    <input type="search" class="form-control" id="at-search"
+                                    <input type="search" class="form-control" id="at-search" name="at_search"
+                                        value="<?php echo esc_attr( $filter_search ); ?>"
                                         placeholder="Search teachers by name or email..." autocomplete="off">
                                 </div>
                                 <div class="at-filter-selects">
                                     <div class="form-group mb-0">
                                         <label for="at-status" class="visually-hidden">Status</label>
-                                        <select class="form-control form-select" id="at-status">
-                                            <option value="all">All Status</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="approved">Approved</option>
-                                            <option value="rejected">Rejected</option>
-                                            <option value="suspended">Suspended</option>
+                                        <select class="form-control form-select" id="at-status" name="at_status">
+                                            <option value="all" <?php selected( $filter_status, 'all' ); ?>>All Status</option>
+                                            <option value="pending" <?php selected( $filter_status, 'pending' ); ?>>Pending</option>
+                                            <option value="approved" <?php selected( $filter_status, 'approved' ); ?>>Approved</option>
+                                            <option value="rejected" <?php selected( $filter_status, 'rejected' ); ?>>Rejected</option>
+                                            <option value="suspended" <?php selected( $filter_status, 'suspended' ); ?>>Suspended</option>
                                         </select>
                                     </div>
                                     <div class="form-group mb-0">
                                         <label for="at-specialty" class="visually-hidden">Specialization</label>
-                                        <select class="form-control form-select" id="at-specialty">
-                                            <option value="all">All Specializations</option>
-                                            <option value="piano">Piano</option>
-                                            <option value="vocals">Vocals</option>
-                                            <option value="guitar">Guitar</option>
-                                            <option value="drums">Drums</option>
-                                            <option value="theory">Music Theory</option>
+                                        <select class="form-control form-select" id="at-specialty" name="at_specialty">
+                                            <option value="all" <?php selected( $filter_specialty, 'all' ); ?>>All Specializations</option>
+                                            <option value="piano" <?php selected( $filter_specialty, 'piano' ); ?>>Piano</option>
+                                            <option value="vocals" <?php selected( $filter_specialty, 'vocals' ); ?>>Vocals</option>
+                                            <option value="guitar" <?php selected( $filter_specialty, 'guitar' ); ?>>Guitar</option>
+                                            <option value="drums" <?php selected( $filter_specialty, 'drums' ); ?>>Drums</option>
+                                            <option value="theory" <?php selected( $filter_specialty, 'theory' ); ?>>Music Theory</option>
                                         </select>
                                     </div>
                                     <button type="submit" class="theme-btn" id="at-filter-btn">
@@ -239,7 +291,7 @@ if ( ! isset( $user_first_name ) ) {
                                 </div>
                             </form>
 
-                            <div class="table-responsive td-table-wrap" id="at-table-wrap">
+                            <div class="table-responsive td-table-wrap" id="at-table-wrap" <?php echo empty( $teachers ) ? 'hidden' : ''; ?>>
                                 <table class="table td-table sb-table at-table">
                                     <thead>
                                         <tr>
@@ -255,33 +307,54 @@ if ( ! isset( $user_first_name ) ) {
                                         </tr>
                                     </thead>
                                     <tbody id="at-table-body">
-
+                                        <?php if ( empty( $teachers ) ) : ?>
+                                        <?php else : ?>
+                                            <?php foreach ( $teachers as $teacher ) : ?>
+                                                <?php
+                                                $tid   = isset( $teacher['id'] ) ? absint( $teacher['id'] ) : 0;
+                                                $tname = isset( $teacher['name'] ) ? (string) $teacher['name'] : '';
+                                                $temail = isset( $teacher['email'] ) ? (string) $teacher['email'] : '';
+                                                $tstatus = isset( $teacher['status'] ) ? (string) $teacher['status'] : 'pending';
+                                                $tspec  = isset( $teacher['specialty'] ) ? (string) $teacher['specialty'] : 'all';
+                                                $tphone = isset( $teacher['phone'] ) ? (string) $teacher['phone'] : '';
+                                                $texp   = isset( $teacher['experience'] ) ? (string) $teacher['experience'] : '';
+                                                $trating = isset( $teacher['rating'] ) ? (string) $teacher['rating'] : '0.0';
+                                                $tclasses = isset( $teacher['classes'] ) ? absint( $teacher['classes'] ) : 0;
+                                                $tstudents = isset( $teacher['students'] ) ? absint( $teacher['students'] ) : 0;
+                                                $tbio = isset( $teacher['bio'] ) ? (string) $teacher['bio'] : '';
+                                                $timg = isset( $teacher['image'] ) ? (string) $teacher['image'] : '';
+                                                $tjoined = isset( $teacher['joined'] ) ? (string) $teacher['joined'] : '';
+                                                $tspec_label = isset( $teacher['specialization'] ) ? (string) $teacher['specialization'] : '';
+                                                $tstatus_label = isset( $teacher['status_label'] ) ? (string) $teacher['status_label'] : '';
+                                                $tstatus_class = isset( $teacher['status_class'] ) ? (string) $teacher['status_class'] : 'is-pending';
+                                                ?>
                                         <tr class="at-row"
-                                            data-name="John Smith"
-                                            data-email="john@email.com"
-                                            data-status="approved"
-                                            data-specialty="piano"
-                                            data-phone="+1 615 555 0101"
-                                            data-experience="10+ Years"
-                                            data-rating="4.9"
-                                            data-classes="12"
-                                            data-students="25"
-                                            data-bio="Experienced gospel piano instructor helping students grow in worship accompaniment and musical confidence."
-                                            data-image="assets/img/team/01.jpg"
-                                            data-joined="Jan 12, 2025">
+                                            data-teacher-id="<?php echo esc_attr( (string) $tid ); ?>"
+                                            data-name="<?php echo esc_attr( $tname ); ?>"
+                                            data-email="<?php echo esc_attr( $temail ); ?>"
+                                            data-status="<?php echo esc_attr( $tstatus ); ?>"
+                                            data-specialty="<?php echo esc_attr( $tspec ); ?>"
+                                            data-phone="<?php echo esc_attr( $tphone ); ?>"
+                                            data-experience="<?php echo esc_attr( $texp ); ?>"
+                                            data-rating="<?php echo esc_attr( $trating ); ?>"
+                                            data-classes="<?php echo esc_attr( (string) $tclasses ); ?>"
+                                            data-students="<?php echo esc_attr( (string) $tstudents ); ?>"
+                                            data-bio="<?php echo esc_attr( $tbio ); ?>"
+                                            data-image="<?php echo esc_url( $timg ); ?>"
+                                            data-joined="<?php echo esc_attr( $tjoined ); ?>">
                                             <td data-label="Profile">
-                                                <img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="John Smith">
+                                                <img class="at-avatar" src="<?php echo esc_url( $timg ); ?>" alt="<?php echo esc_attr( $tname ); ?>">
                                             </td>
-                                            <td data-label="Name"><strong>John Smith</strong></td>
-                                            <td data-label="Email">john@email.com</td>
-                                            <td data-label="Specialization">Gospel Piano</td>
-                                            <td data-label="Students">25 Students</td>
-                                            <td data-label="Rating"><span class="td-rating">★★★★★</span> 4.9</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed at-status">Approved</span></td>
-                                            <td data-label="Joined Date">Jan 12, 2025</td>
+                                            <td data-label="Name"><strong><?php echo esc_html( $tname ); ?></strong></td>
+                                            <td data-label="Email"><?php echo esc_html( $temail ); ?></td>
+                                            <td data-label="Specialization"><?php echo esc_html( $tspec_label ); ?></td>
+                                            <td data-label="Students"><?php echo esc_html( (string) $tstudents ); ?> Students</td>
+                                            <td data-label="Rating"><span class="td-rating">★★★★★</span> <?php echo esc_html( $trating ); ?></td>
+                                            <td data-label="Status"><span class="sb-badge <?php echo esc_attr( $tstatus_class ); ?> at-status"><?php echo esc_html( $tstatus_label ); ?></span></td>
+                                            <td data-label="Joined Date"><?php echo esc_html( $tjoined ); ?></td>
                                             <td data-label="Action">
                                                 <div class="dropdown at-action-dropdown">
-                                                    <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for John Smith">
+                                                    <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="<?php echo esc_attr( sprintf( 'Actions for %s', $tname ) ); ?>">
                                                         <i class="far fa-ellipsis-vertical"></i>
                                                     </button>
                                                     <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
@@ -296,315 +369,47 @@ if ( ! isset( $user_first_name ) ) {
                                                 </div>
                                             </td>
                                         </tr>
-
-                                        <tr class="at-row"
-                                            data-name="Emily Davis"
-                                            data-email="emily@email.com"
-                                            data-status="pending"
-                                            data-specialty="vocals"
-                                            data-phone="+1 615 555 0102"
-                                            data-experience="8 Years"
-                                            data-rating="4.8"
-                                            data-classes="6"
-                                            data-students="18"
-                                            data-bio="Vocal coach specializing in worship leadership and contemporary gospel singing techniques."
-                                            data-image="assets/img/team/03.jpg"
-                                            data-joined="Mar 02, 2026">
-                                            <td data-label="Profile">
-                                                <img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/03.jpg' ) ); ?>" alt="Emily Davis">
-                                            </td>
-                                            <td data-label="Name"><strong>Emily Davis</strong></td>
-                                            <td data-label="Email">emily@email.com</td>
-                                            <td data-label="Specialization">Vocal Training</td>
-                                            <td data-label="Students">18 Students</td>
-                                            <td data-label="Rating"><span class="td-rating">★★★★★</span> 4.8</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending at-status">Pending</span></td>
-                                            <td data-label="Joined Date">Mar 02, 2026</td>
-                                            <td data-label="Action">
-                                                <div class="dropdown at-action-dropdown">
-                                                    <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Emily Davis">
-                                                        <i class="far fa-ellipsis-vertical"></i>
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-approve-btn"><i class="far fa-circle-check"></i> <span>Approve</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-reject-btn"><i class="far fa-circle-xmark"></i> <span>Reject</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-edit-btn"><i class="far fa-pen"></i> <span>Edit</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-suspend-btn"><i class="far fa-ban"></i> <span>Suspend</span></button></li>
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item is-logout at-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                    </ul>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="at-row"
-                                            data-name="Michael Brown"
-                                            data-email="michael@email.com"
-                                            data-status="suspended"
-                                            data-specialty="guitar"
-                                            data-phone="+1 615 555 0103"
-                                            data-experience="6 Years"
-                                            data-rating="4.7"
-                                            data-classes="4"
-                                            data-students="10"
-                                            data-bio="Acoustic and electric guitar instructor focused on gospel grooves and worship band skills."
-                                            data-image="assets/img/team/04.jpg"
-                                            data-joined="Nov 18, 2024">
-                                            <td data-label="Profile">
-                                                <img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/04.jpg' ) ); ?>" alt="Michael Brown">
-                                            </td>
-                                            <td data-label="Name"><strong>Michael Brown</strong></td>
-                                            <td data-label="Email">michael@email.com</td>
-                                            <td data-label="Specialization">Guitar</td>
-                                            <td data-label="Students">10 Students</td>
-                                            <td data-label="Rating"><span class="td-rating">★★★★★</span> 4.7</td>
-                                            <td data-label="Status"><span class="sb-badge is-suspended at-status">Suspended</span></td>
-                                            <td data-label="Joined Date">Nov 18, 2024</td>
-                                            <td data-label="Action">
-                                                <div class="dropdown at-action-dropdown">
-                                                    <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Michael Brown">
-                                                        <i class="far fa-ellipsis-vertical"></i>
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-approve-btn"><i class="far fa-circle-check"></i> <span>Approve</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-reject-btn"><i class="far fa-circle-xmark"></i> <span>Reject</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-edit-btn"><i class="far fa-pen"></i> <span>Edit</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-suspend-btn"><i class="far fa-ban"></i> <span>Suspend</span></button></li>
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item is-logout at-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                    </ul>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="at-row"
-                                            data-name="David Wilson"
-                                            data-email="david@email.com"
-                                            data-status="approved"
-                                            data-specialty="drums"
-                                            data-phone="+1 615 555 0104"
-                                            data-experience="12 Years"
-                                            data-rating="4.9"
-                                            data-classes="8"
-                                            data-students="22"
-                                            data-bio="Worship drummer teaching groove, tempo control, and live church set dynamics."
-                                            data-image="assets/img/team/05.jpg"
-                                            data-joined="Aug 05, 2024">
-                                            <td data-label="Profile">
-                                                <img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/05.jpg' ) ); ?>" alt="David Wilson">
-                                            </td>
-                                            <td data-label="Name"><strong>David Wilson</strong></td>
-                                            <td data-label="Email">david@email.com</td>
-                                            <td data-label="Specialization">Drums</td>
-                                            <td data-label="Students">22 Students</td>
-                                            <td data-label="Rating"><span class="td-rating">★★★★★</span> 4.9</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed at-status">Approved</span></td>
-                                            <td data-label="Joined Date">Aug 05, 2024</td>
-                                            <td data-label="Action">
-                                                <div class="dropdown at-action-dropdown">
-                                                    <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for David Wilson">
-                                                        <i class="far fa-ellipsis-vertical"></i>
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-approve-btn"><i class="far fa-circle-check"></i> <span>Approve</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-reject-btn"><i class="far fa-circle-xmark"></i> <span>Reject</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-edit-btn"><i class="far fa-pen"></i> <span>Edit</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-suspend-btn"><i class="far fa-ban"></i> <span>Suspend</span></button></li>
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item is-logout at-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                    </ul>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="at-row"
-                                            data-name="Sarah Lee"
-                                            data-email="sarah.lee@email.com"
-                                            data-status="rejected"
-                                            data-specialty="theory"
-                                            data-phone="+1 615 555 0105"
-                                            data-experience="4 Years"
-                                            data-rating="4.5"
-                                            data-classes="2"
-                                            data-students="5"
-                                            data-bio="Music theory educator focused on chord progressions and gospel harmony fundamentals."
-                                            data-image="assets/img/team/02.jpg"
-                                            data-joined="Feb 20, 2026">
-                                            <td data-label="Profile">
-                                                <img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="Sarah Lee">
-                                            </td>
-                                            <td data-label="Name"><strong>Sarah Lee</strong></td>
-                                            <td data-label="Email">sarah.lee@email.com</td>
-                                            <td data-label="Specialization">Music Theory</td>
-                                            <td data-label="Students">5 Students</td>
-                                            <td data-label="Rating"><span class="td-rating">★★★★☆</span> 4.5</td>
-                                            <td data-label="Status"><span class="sb-badge is-cancelled at-status">Rejected</span></td>
-                                            <td data-label="Joined Date">Feb 20, 2026</td>
-                                            <td data-label="Action">
-                                                <div class="dropdown at-action-dropdown">
-                                                    <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Sarah Lee">
-                                                        <i class="far fa-ellipsis-vertical"></i>
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-approve-btn"><i class="far fa-circle-check"></i> <span>Approve</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-reject-btn"><i class="far fa-circle-xmark"></i> <span>Reject</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-edit-btn"><i class="far fa-pen"></i> <span>Edit</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-suspend-btn"><i class="far fa-ban"></i> <span>Suspend</span></button></li>
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item is-logout at-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                    </ul>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="at-row"
-                                            data-name="James Carter"
-                                            data-email="james@email.com"
-                                            data-status="pending"
-                                            data-specialty="piano"
-                                            data-phone="+1 615 555 0106"
-                                            data-experience="5 Years"
-                                            data-rating="4.6"
-                                            data-classes="3"
-                                            data-students="9"
-                                            data-bio="Beginner-friendly gospel piano teacher specializing in chords and hymn arrangements."
-                                            data-image="assets/img/team/06.jpg"
-                                            data-joined="Mar 10, 2026">
-                                            <td data-label="Profile">
-                                                <img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/06.jpg' ) ); ?>" alt="James Carter">
-                                            </td>
-                                            <td data-label="Name"><strong>James Carter</strong></td>
-                                            <td data-label="Email">james@email.com</td>
-                                            <td data-label="Specialization">Gospel Piano</td>
-                                            <td data-label="Students">9 Students</td>
-                                            <td data-label="Rating"><span class="td-rating">★★★★★</span> 4.6</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending at-status">Pending</span></td>
-                                            <td data-label="Joined Date">Mar 10, 2026</td>
-                                            <td data-label="Action">
-                                                <div class="dropdown at-action-dropdown">
-                                                    <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for James Carter">
-                                                        <i class="far fa-ellipsis-vertical"></i>
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-approve-btn"><i class="far fa-circle-check"></i> <span>Approve</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-reject-btn"><i class="far fa-circle-xmark"></i> <span>Reject</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-edit-btn"><i class="far fa-pen"></i> <span>Edit</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-suspend-btn"><i class="far fa-ban"></i> <span>Suspend</span></button></li>
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item is-logout at-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                    </ul>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="at-row"
-                                            data-name="Olivia Martin"
-                                            data-email="olivia@email.com"
-                                            data-status="approved"
-                                            data-specialty="vocals"
-                                            data-phone="+1 615 555 0107"
-                                            data-experience="9 Years"
-                                            data-rating="5.0"
-                                            data-classes="10"
-                                            data-students="30"
-                                            data-bio="Award-winning worship vocalist coaching range, breath control, and stage presence."
-                                            data-image="assets/img/team/07.jpg"
-                                            data-joined="Jun 01, 2024">
-                                            <td data-label="Profile">
-                                                <img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/07.jpg' ) ); ?>" alt="Olivia Martin">
-                                            </td>
-                                            <td data-label="Name"><strong>Olivia Martin</strong></td>
-                                            <td data-label="Email">olivia@email.com</td>
-                                            <td data-label="Specialization">Vocal Training</td>
-                                            <td data-label="Students">30 Students</td>
-                                            <td data-label="Rating"><span class="td-rating">★★★★★</span> 5.0</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed at-status">Approved</span></td>
-                                            <td data-label="Joined Date">Jun 01, 2024</td>
-                                            <td data-label="Action">
-                                                <div class="dropdown at-action-dropdown">
-                                                    <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Olivia Martin">
-                                                        <i class="far fa-ellipsis-vertical"></i>
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-approve-btn"><i class="far fa-circle-check"></i> <span>Approve</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-reject-btn"><i class="far fa-circle-xmark"></i> <span>Reject</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-edit-btn"><i class="far fa-pen"></i> <span>Edit</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-suspend-btn"><i class="far fa-ban"></i> <span>Suspend</span></button></li>
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item is-logout at-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                    </ul>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="at-row"
-                                            data-name="Daniel Brooks"
-                                            data-email="daniel@email.com"
-                                            data-status="approved"
-                                            data-specialty="theory"
-                                            data-phone="+1 615 555 0108"
-                                            data-experience="7 Years"
-                                            data-rating="4.8"
-                                            data-classes="7"
-                                            data-students="14"
-                                            data-bio="Teaches music theory for worship teams with practical songwriting applications."
-                                            data-image="assets/img/team/08.jpg"
-                                            data-joined="Sep 22, 2025">
-                                            <td data-label="Profile">
-                                                <img class="at-avatar" src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/08.jpg' ) ); ?>" alt="Daniel Brooks">
-                                            </td>
-                                            <td data-label="Name"><strong>Daniel Brooks</strong></td>
-                                            <td data-label="Email">daniel@email.com</td>
-                                            <td data-label="Specialization">Music Theory</td>
-                                            <td data-label="Students">14 Students</td>
-                                            <td data-label="Rating"><span class="td-rating">★★★★★</span> 4.8</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed at-status">Approved</span></td>
-                                            <td data-label="Joined Date">Sep 22, 2025</td>
-                                            <td data-label="Action">
-                                                <div class="dropdown at-action-dropdown">
-                                                    <button class="at-action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for Daniel Brooks">
-                                                        <i class="far fa-ellipsis-vertical"></i>
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end ad-dropdown at-action-menu">
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-view-btn"><i class="far fa-eye"></i> <span>View Profile</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-approve-btn"><i class="far fa-circle-check"></i> <span>Approve</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-reject-btn"><i class="far fa-circle-xmark"></i> <span>Reject</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-edit-btn"><i class="far fa-pen"></i> <span>Edit</span></button></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item at-suspend-btn"><i class="far fa-ban"></i> <span>Suspend</span></button></li>
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        <li><button type="button" class="dropdown-item ad-dropdown-item is-logout at-delete-btn"><i class="far fa-trash-alt"></i> <span>Delete</span></button></li>
-                                                    </ul>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
 
                                     </tbody>
                                 </table>
                             </div>
 
-                            <div class="sl-empty" id="at-empty" hidden>
+                            <div class="sl-empty" id="at-empty" <?php echo empty( $teachers ) ? '' : 'hidden'; ?>>
                                 <i class="far fa-chalkboard-user"></i>
                                 <h3>No teachers found.</h3>
                                 <p>Try adjusting your search or filter options.</p>
                             </div>
 
                             <!-- pagination -->
-                            <nav class="at-pagination" id="at-pagination" aria-label="Teachers pagination">
+                            <?php
+                            $show_pagination = $total_pages > 1;
+                            $prev_disabled   = empty( $pagination['has_prev'] );
+                            $next_disabled   = empty( $pagination['has_next'] );
+                            $prev_url = ( ! $prev_disabled && ! empty( $pagination['prev_page'] ) && function_exists( 'gmm_admin_teachers_page_url' ) )
+                                ? gmm_admin_teachers_page_url( (int) $pagination['prev_page'], $filters )
+                                : '#';
+                            $next_url = ( ! $next_disabled && ! empty( $pagination['next_page'] ) && function_exists( 'gmm_admin_teachers_page_url' ) )
+                                ? gmm_admin_teachers_page_url( (int) $pagination['next_page'], $filters )
+                                : '#';
+                            ?>
+                            <nav class="at-pagination" id="at-pagination" aria-label="Teachers pagination" <?php echo $show_pagination ? '' : 'hidden'; ?>>
                                 <ul class="pagination justify-content-center mb-0">
-                                    <li class="page-item disabled" id="at-page-prev">
-                                        <a class="page-link" href="#" data-page="prev" aria-label="Previous"><i class="far fa-angle-left"></i> Previous</a>
+                                    <li class="page-item<?php echo $prev_disabled ? ' disabled' : ''; ?>" id="at-page-prev">
+                                        <a class="page-link" href="<?php echo esc_url( $prev_url ); ?>" data-page="prev" aria-label="Previous"><i class="far fa-angle-left"></i> Previous</a>
                                     </li>
-                                    <li class="page-item active"><a class="page-link" href="#" data-page="1">1</a></li>
-                                    <li class="page-item"><a class="page-link" href="#" data-page="2">2</a></li>
-                                    <li class="page-item"><a class="page-link" href="#" data-page="3">3</a></li>
-                                    <li class="page-item" id="at-page-next">
-                                        <a class="page-link" href="#" data-page="next" aria-label="Next">Next <i class="far fa-angle-right"></i></a>
+                                    <?php
+                                    $start_p = max( 1, $current_page - 2 );
+                                    $end_p   = min( $total_pages, $start_p + 4 );
+                                    $start_p = max( 1, $end_p - 4 );
+                                    for ( $p = $start_p; $p <= $end_p; $p++ ) :
+                                        $p_url = function_exists( 'gmm_admin_teachers_page_url' ) ? gmm_admin_teachers_page_url( $p, $filters ) : '#';
+                                        ?>
+                                    <li class="page-item<?php echo ( $p === $current_page ) ? ' active' : ''; ?>"><a class="page-link" href="<?php echo esc_url( $p_url ); ?>" data-page="<?php echo esc_attr( (string) $p ); ?>"><?php echo esc_html( (string) $p ); ?></a></li>
+                                    <?php endfor; ?>
+                                    <li class="page-item<?php echo $next_disabled ? ' disabled' : ''; ?>" id="at-page-next">
+                                        <a class="page-link" href="<?php echo esc_url( $next_url ); ?>" data-page="next" aria-label="Next">Next <i class="far fa-angle-right"></i></a>
                                     </li>
                                 </ul>
                             </nav>
@@ -666,7 +471,7 @@ if ( ! isset( $user_first_name ) ) {
     <!-- demo toast -->
     <div class="gospel-alert gospel-alert-success sl-toast" id="at-toast" hidden>
         <i class="far fa-circle-check"></i>
-        <span id="at-toast-text">Action completed (demo).</span>
+        <span id="at-toast-text">Action completed.</span>
     </div>
 
 

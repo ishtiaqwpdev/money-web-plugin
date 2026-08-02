@@ -54,10 +54,19 @@ class GMM_Ajax {
 		// Admin teacher actions.
 		$loader->add_action( 'wp_ajax_gmm_approve_teacher', $instance, 'approve_teacher' );
 		$loader->add_action( 'wp_ajax_gmm_reject_teacher', $instance, 'reject_teacher' );
+		$loader->add_action( 'wp_ajax_gmm_suspend_teacher', $instance, 'suspend_teacher' );
+		$loader->add_action( 'wp_ajax_gmm_delete_teacher', $instance, 'delete_teacher' );
+		$loader->add_action( 'wp_ajax_gmm_bulk_teacher_action', $instance, 'bulk_teacher_action' );
+		$loader->add_action( 'wp_ajax_gmm_get_teacher_profile', $instance, 'get_teacher_profile' );
 		$loader->add_action( 'wp_ajax_gmm_update_teacher_status', $instance, 'update_teacher_status' );
 
 		// Student actions.
 		$loader->add_action( 'wp_ajax_gmm_update_student_profile', $instance, 'update_student_profile' );
+		$loader->add_action( 'wp_ajax_gmm_update_student_status', $instance, 'update_student_status' );
+		$loader->add_action( 'wp_ajax_gmm_admin_edit_student', $instance, 'admin_edit_student' );
+		$loader->add_action( 'wp_ajax_gmm_delete_student', $instance, 'delete_student' );
+		$loader->add_action( 'wp_ajax_gmm_bulk_student_action', $instance, 'bulk_student_action' );
+		$loader->add_action( 'wp_ajax_gmm_get_student_profile', $instance, 'get_student_profile' );
 		$loader->add_action( 'wp_ajax_gmm_toggle_favourite', $instance, 'toggle_favourite' );
 		$loader->add_action( 'wp_ajax_gmm_student_cancel_booking', $instance, 'student_cancel_booking' );
 
@@ -70,6 +79,11 @@ class GMM_Ajax {
 		// Admin content / payment.
 		$loader->add_action( 'wp_ajax_gmm_approve_class', $instance, 'approve_class' );
 		$loader->add_action( 'wp_ajax_gmm_reject_class', $instance, 'reject_class' );
+		$loader->add_action( 'wp_ajax_gmm_admin_edit_class', $instance, 'admin_edit_class' );
+		$loader->add_action( 'wp_ajax_gmm_toggle_class_featured', $instance, 'toggle_class_featured' );
+		$loader->add_action( 'wp_ajax_gmm_delete_class', $instance, 'delete_class' );
+		$loader->add_action( 'wp_ajax_gmm_bulk_class_action', $instance, 'bulk_class_action' );
+		$loader->add_action( 'wp_ajax_gmm_get_class_profile', $instance, 'get_class_profile' );
 		$loader->add_action( 'wp_ajax_gmm_delete_content', $instance, 'delete_content' );
 		$loader->add_action( 'wp_ajax_gmm_update_payment_status', $instance, 'update_payment_status' );
 	}
@@ -133,7 +147,11 @@ class GMM_Ajax {
 		}
 		$args = $this->get_search_args();
 		if ( ! current_user_can( 'manage_options' ) ) {
-			$args['public'] = true;
+			$args['public']   = true;
+			$args['statuses'] = function_exists( 'gmm_public_class_statuses' )
+				? gmm_public_class_statuses()
+				: array( 'approved', 'published' );
+			unset( $args['status'] );
 		}
 		$this->send_search_result( gmm_search_classes( $args ), __( 'Classes loaded.', 'gospel-music-mastery' ) );
 	}
@@ -143,8 +161,11 @@ class GMM_Ajax {
 	 */
 	public function search_classes_public() {
 		$this->verify_request();
-		$args           = $this->get_search_args();
-		$args['status'] = 'published';
+		$args             = $this->get_search_args();
+		$args['statuses'] = function_exists( 'gmm_public_class_statuses' )
+			? gmm_public_class_statuses()
+			: array( 'approved', 'published' );
+		unset( $args['status'] );
 		$args['public'] = true;
 		$this->send_search_result( gmm_search_classes( $args ), __( 'Classes loaded.', 'gospel-music-mastery' ) );
 	}
@@ -189,7 +210,27 @@ class GMM_Ajax {
 	public function filter_teachers() {
 		$this->verify_request();
 		$this->require_admin();
-		$result = gmm_admin_filter_teachers( $this->get_filter_args() );
+
+		$args = $this->get_filter_args();
+
+		// Prefer admin teachers controller (UI status + email search + class counts).
+		if ( class_exists( 'GMM_Admin_Teachers' ) ) {
+			$list_args = array(
+				'search'    => isset( $args['search'] ) ? $args['search'] : '',
+				'status'    => ! empty( $args['status'] ) ? $args['status'] : 'all',
+				'specialty' => ! empty( $args['category'] ) ? $args['category'] : ( ! empty( $args['specialization'] ) ? $args['specialization'] : 'all' ),
+				'page'      => isset( $args['page'] ) ? absint( $args['page'] ) : 1,
+				'per_page'  => isset( $args['per_page'] ) ? absint( $args['per_page'] ) : GMM_Admin_Teachers::PER_PAGE,
+			);
+			if ( ! empty( $args['specialty'] ) ) {
+				$list_args['specialty'] = sanitize_key( (string) $args['specialty'] );
+			}
+			$result = GMM_Admin_Teachers::list_teachers( $list_args );
+			$this->send_admin_filter_result( $result );
+			return;
+		}
+
+		$result = gmm_admin_filter_teachers( $args );
 		$this->send_admin_filter_result( $result );
 	}
 
@@ -199,7 +240,24 @@ class GMM_Ajax {
 	public function filter_students() {
 		$this->verify_request();
 		$this->require_admin();
-		$result = gmm_admin_filter_students( $this->get_filter_args() );
+
+		$args = $this->get_filter_args();
+
+		if ( class_exists( 'GMM_Admin_Students' ) ) {
+			$list_args = array(
+				'search'   => isset( $args['search'] ) ? $args['search'] : '',
+				'status'   => ! empty( $args['status'] ) ? $args['status'] : 'all',
+				'level'    => ! empty( $args['level'] ) ? $args['level'] : ( ! empty( $args['difficulty'] ) ? $args['difficulty'] : 'all' ),
+				'period'   => ! empty( $args['period'] ) ? $args['period'] : 'all',
+				'page'     => isset( $args['page'] ) ? absint( $args['page'] ) : 1,
+				'per_page' => isset( $args['per_page'] ) ? absint( $args['per_page'] ) : GMM_Admin_Students::PER_PAGE,
+			);
+			$result = GMM_Admin_Students::list_students( $list_args );
+			$this->send_admin_filter_result( $result );
+			return;
+		}
+
+		$result = gmm_admin_filter_students( $args );
 		$this->send_admin_filter_result( $result );
 	}
 
@@ -209,7 +267,23 @@ class GMM_Ajax {
 	public function filter_classes() {
 		$this->verify_request();
 		$this->require_admin();
-		$result = gmm_admin_filter_classes( $this->get_filter_args() );
+
+		$args = $this->get_filter_args();
+		if ( class_exists( 'GMM_Admin_Classes' ) ) {
+			$list_args = array(
+				'search'     => isset( $args['search'] ) ? $args['search'] : '',
+				'status'     => ! empty( $args['status'] ) ? $args['status'] : 'all',
+				'category'   => ! empty( $args['category'] ) ? $args['category'] : 'all',
+				'difficulty' => ! empty( $args['difficulty'] ) ? $args['difficulty'] : 'all',
+				'page'       => isset( $args['page'] ) ? absint( $args['page'] ) : 1,
+				'per_page'   => isset( $args['per_page'] ) ? absint( $args['per_page'] ) : GMM_Admin_Classes::PER_PAGE,
+			);
+			$result = GMM_Admin_Classes::list_classes( $list_args );
+			$this->send_admin_filter_result( $result );
+			return;
+		}
+
+		$result = gmm_admin_filter_classes( $args );
 		$this->send_admin_filter_result( $result );
 	}
 
@@ -253,7 +327,9 @@ class GMM_Ajax {
 	public function approve_teacher() {
 		$this->verify_request();
 		$this->require_admin();
-		$result = $this->set_teacher_status( absint( $this->post( 'teacher_id' ) ), 'active' );
+		$result = class_exists( 'GMM_Admin_Teachers' )
+			? GMM_Admin_Teachers::approve( absint( $this->post( 'teacher_id' ) ) )
+			: $this->set_teacher_status( absint( $this->post( 'teacher_id' ) ), 'active' );
 		$this->send_result( $result, __( 'Teacher approved.', 'gospel-music-mastery' ) );
 	}
 
@@ -263,8 +339,88 @@ class GMM_Ajax {
 	public function reject_teacher() {
 		$this->verify_request();
 		$this->require_admin();
-		$result = $this->set_teacher_status( absint( $this->post( 'teacher_id' ) ), 'inactive' );
+		$reason = sanitize_textarea_field( (string) $this->post( 'reason' ) );
+		$result = class_exists( 'GMM_Admin_Teachers' )
+			? GMM_Admin_Teachers::reject( absint( $this->post( 'teacher_id' ) ), $reason )
+			: $this->set_teacher_status( absint( $this->post( 'teacher_id' ) ), 'rejected' );
 		$this->send_result( $result, __( 'Teacher rejected.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * @return void
+	 */
+	public function suspend_teacher() {
+		$this->verify_request();
+		$this->require_admin();
+		$result = class_exists( 'GMM_Admin_Teachers' )
+			? GMM_Admin_Teachers::suspend( absint( $this->post( 'teacher_id' ) ) )
+			: $this->set_teacher_status( absint( $this->post( 'teacher_id' ) ), 'suspended' );
+		$this->send_result( $result, __( 'Teacher suspended.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Soft-delete teacher (requires confirm=1). Does not delete WP user by default.
+	 *
+	 * @return void
+	 */
+	public function delete_teacher() {
+		$this->verify_request();
+		$this->require_admin();
+		if ( '1' !== (string) $this->post( 'confirm' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Confirmation required.', 'gospel-music-mastery' ) ), 400 );
+		}
+		$result = class_exists( 'GMM_Admin_Teachers' )
+			? GMM_Admin_Teachers::delete_teacher( absint( $this->post( 'teacher_id' ) ) )
+			: new WP_Error( 'gmm_missing', __( 'Teacher management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Teacher deleted.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Bulk approve / reject / suspend.
+	 *
+	 * @return void
+	 */
+	public function bulk_teacher_action() {
+		$this->verify_request();
+		$this->require_admin();
+
+		$action = sanitize_key( (string) $this->post( 'bulk_action' ) );
+		$reason = sanitize_textarea_field( (string) $this->post( 'reason' ) );
+		$ids    = $this->post( 'teacher_ids' );
+		if ( ! is_array( $ids ) ) {
+			$ids = array_filter( array_map( 'absint', explode( ',', (string) $ids ) ) );
+		}
+
+		$result = class_exists( 'GMM_Admin_Teachers' )
+			? GMM_Admin_Teachers::bulk_action( $ids, $action, $reason )
+			: new WP_Error( 'gmm_missing', __( 'Teacher management unavailable.', 'gospel-music-mastery' ) );
+
+		$this->send_result( $result, __( 'Bulk action completed.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Admin teacher profile detail.
+	 *
+	 * @return void
+	 */
+	public function get_teacher_profile() {
+		$this->verify_request();
+		$this->require_admin();
+
+		$profile = class_exists( 'GMM_Admin_Teachers' )
+			? GMM_Admin_Teachers::get_profile( absint( $this->post( 'teacher_id' ) ) )
+			: new WP_Error( 'gmm_missing', __( 'Teacher management unavailable.', 'gospel-music-mastery' ) );
+
+		if ( is_wp_error( $profile ) ) {
+			wp_send_json_error( array( 'message' => $profile->get_error_message() ), 400 );
+		}
+
+		wp_send_json_success(
+			array(
+				'message' => __( 'Teacher profile loaded.', 'gospel-music-mastery' ),
+				'profile' => $profile,
+			)
+		);
 	}
 
 	/**
@@ -274,11 +430,20 @@ class GMM_Ajax {
 		$this->verify_request();
 		$this->require_admin();
 		$status = sanitize_key( (string) $this->post( 'status' ) );
-		$allowed = array( 'pending', 'active', 'inactive', 'suspended' );
+
+		// Map UI labels to DB values.
+		if ( 'approved' === $status ) {
+			$status = 'active';
+		}
+
+		$allowed = array( 'pending', 'active', 'approved', 'inactive', 'rejected', 'suspended' );
 		if ( ! in_array( $status, $allowed, true ) ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid status.', 'gospel-music-mastery' ) ), 400 );
 		}
-		$result = $this->set_teacher_status( absint( $this->post( 'teacher_id' ) ), $status );
+
+		$result = class_exists( 'GMM_Admin_Teachers' )
+			? GMM_Admin_Teachers::set_status( absint( $this->post( 'teacher_id' ) ), $status )
+			: $this->set_teacher_status( absint( $this->post( 'teacher_id' ) ), $status );
 		$this->send_result( $result, __( 'Teacher status updated.', 'gospel-music-mastery' ) );
 	}
 
@@ -311,6 +476,111 @@ class GMM_Ajax {
 			: new WP_Error( 'gmm_missing', __( 'Student system unavailable.', 'gospel-music-mastery' ) );
 
 		$this->send_result( $result, __( 'Profile updated successfully.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Admin: update student status (activate / deactivate / suspend).
+	 *
+	 * @return void
+	 */
+	public function update_student_status() {
+		$this->verify_request();
+		$this->require_admin();
+		$status = sanitize_key( (string) $this->post( 'status' ) );
+		$result = class_exists( 'GMM_Admin_Students' )
+			? GMM_Admin_Students::set_status( absint( $this->post( 'student_id' ) ), $status )
+			: new WP_Error( 'gmm_missing', __( 'Student management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Student status updated.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Admin: edit student fields + WP user.
+	 *
+	 * @return void
+	 */
+	public function admin_edit_student() {
+		$this->verify_request();
+		$this->require_admin();
+
+		$data = array(
+			'first_name'     => $this->post( 'first_name' ),
+			'last_name'      => $this->post( 'last_name' ),
+			'email'          => $this->post( 'email' ),
+			'phone'          => $this->post( 'phone' ),
+			'learning_level' => $this->post( 'learning_level' ),
+			'learning_goals' => $this->post( 'learning_goals' ),
+			'status'         => $this->post( 'status' ),
+		);
+
+		$result = class_exists( 'GMM_Admin_Students' )
+			? GMM_Admin_Students::edit_student( absint( $this->post( 'student_id' ) ), $data )
+			: new WP_Error( 'gmm_missing', __( 'Student management unavailable.', 'gospel-music-mastery' ) );
+
+		$this->send_result( $result, __( 'Student updated.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Soft-delete student (confirm=1 required).
+	 *
+	 * @return void
+	 */
+	public function delete_student() {
+		$this->verify_request();
+		$this->require_admin();
+		if ( '1' !== (string) $this->post( 'confirm' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Confirmation required.', 'gospel-music-mastery' ) ), 400 );
+		}
+		$result = class_exists( 'GMM_Admin_Students' )
+			? GMM_Admin_Students::delete_student( absint( $this->post( 'student_id' ) ) )
+			: new WP_Error( 'gmm_missing', __( 'Student management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Student deleted.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Bulk activate / suspend / delete.
+	 *
+	 * @return void
+	 */
+	public function bulk_student_action() {
+		$this->verify_request();
+		$this->require_admin();
+
+		$action = sanitize_key( (string) $this->post( 'bulk_action' ) );
+		$ids    = $this->post( 'student_ids' );
+		if ( ! is_array( $ids ) ) {
+			$ids = array_filter( array_map( 'absint', explode( ',', (string) $ids ) ) );
+		}
+
+		$result = class_exists( 'GMM_Admin_Students' )
+			? GMM_Admin_Students::bulk_action( $ids, $action )
+			: new WP_Error( 'gmm_missing', __( 'Student management unavailable.', 'gospel-music-mastery' ) );
+
+		$this->send_result( $result, __( 'Bulk action completed.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Admin student profile detail.
+	 *
+	 * @return void
+	 */
+	public function get_student_profile() {
+		$this->verify_request();
+		$this->require_admin();
+
+		$profile = class_exists( 'GMM_Admin_Students' )
+			? GMM_Admin_Students::get_profile( absint( $this->post( 'student_id' ) ) )
+			: new WP_Error( 'gmm_missing', __( 'Student management unavailable.', 'gospel-music-mastery' ) );
+
+		if ( is_wp_error( $profile ) ) {
+			wp_send_json_error( array( 'message' => $profile->get_error_message() ), 400 );
+		}
+
+		wp_send_json_success(
+			array(
+				'message' => __( 'Student profile loaded.', 'gospel-music-mastery' ),
+				'profile' => $profile,
+			)
+		);
 	}
 
 	/**
@@ -476,7 +746,9 @@ class GMM_Ajax {
 	public function approve_class() {
 		$this->verify_request();
 		$this->require_admin();
-		$result = $this->set_class_status( absint( $this->post( 'class_id' ) ), 'published' );
+		$result = class_exists( 'GMM_Admin_Classes' )
+			? GMM_Admin_Classes::approve( absint( $this->post( 'class_id' ) ) )
+			: $this->set_class_status( absint( $this->post( 'class_id' ) ), 'approved' );
 		$this->send_result( $result, __( 'Class approved.', 'gospel-music-mastery' ) );
 	}
 
@@ -486,8 +758,100 @@ class GMM_Ajax {
 	public function reject_class() {
 		$this->verify_request();
 		$this->require_admin();
-		$result = $this->set_class_status( absint( $this->post( 'class_id' ) ), 'draft' );
+		$reason = sanitize_textarea_field( (string) $this->post( 'reason' ) );
+		$result = class_exists( 'GMM_Admin_Classes' )
+			? GMM_Admin_Classes::reject( absint( $this->post( 'class_id' ) ), $reason )
+			: $this->set_class_status( absint( $this->post( 'class_id' ) ), 'rejected' );
 		$this->send_result( $result, __( 'Class rejected.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * @return void
+	 */
+	public function admin_edit_class() {
+		$this->verify_request();
+		$this->require_admin();
+		$data = array(
+			'title'       => $this->post( 'title' ),
+			'description' => $this->post( 'description' ),
+			'category'    => $this->post( 'category' ),
+			'difficulty'  => $this->post( 'difficulty' ),
+			'duration'    => $this->post( 'duration' ),
+			'price'       => $this->post( 'price' ),
+			'image'       => $this->post( 'image' ),
+			'status'      => $this->post( 'status' ),
+		);
+		$result = class_exists( 'GMM_Admin_Classes' )
+			? GMM_Admin_Classes::edit_class( absint( $this->post( 'class_id' ) ), $data )
+			: new WP_Error( 'gmm_missing', __( 'Class management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Class updated.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * @return void
+	 */
+	public function toggle_class_featured() {
+		$this->verify_request();
+		$this->require_admin();
+		$featured = (bool) absint( $this->post( 'featured' ) );
+		$result   = class_exists( 'GMM_Admin_Classes' )
+			? GMM_Admin_Classes::set_featured( absint( $this->post( 'class_id' ) ), $featured )
+			: new WP_Error( 'gmm_missing', __( 'Class management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Featured status updated.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * Soft-delete class (confirm=1).
+	 *
+	 * @return void
+	 */
+	public function delete_class() {
+		$this->verify_request();
+		$this->require_admin();
+		if ( '1' !== (string) $this->post( 'confirm' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Confirmation required.', 'gospel-music-mastery' ) ), 400 );
+		}
+		$result = class_exists( 'GMM_Admin_Classes' )
+			? GMM_Admin_Classes::delete_class( absint( $this->post( 'class_id' ) ) )
+			: new WP_Error( 'gmm_missing', __( 'Class management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Class deleted.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * @return void
+	 */
+	public function bulk_class_action() {
+		$this->verify_request();
+		$this->require_admin();
+		$action = sanitize_key( (string) $this->post( 'bulk_action' ) );
+		$ids    = $this->post( 'class_ids' );
+		if ( ! is_array( $ids ) ) {
+			$ids = array_filter( array_map( 'absint', explode( ',', (string) $ids ) ) );
+		}
+		$result = class_exists( 'GMM_Admin_Classes' )
+			? GMM_Admin_Classes::bulk_action( $ids, $action )
+			: new WP_Error( 'gmm_missing', __( 'Class management unavailable.', 'gospel-music-mastery' ) );
+		$this->send_result( $result, __( 'Bulk action completed.', 'gospel-music-mastery' ) );
+	}
+
+	/**
+	 * @return void
+	 */
+	public function get_class_profile() {
+		$this->verify_request();
+		$this->require_admin();
+		$profile = class_exists( 'GMM_Admin_Classes' )
+			? GMM_Admin_Classes::get_profile( absint( $this->post( 'class_id' ) ) )
+			: new WP_Error( 'gmm_missing', __( 'Class management unavailable.', 'gospel-music-mastery' ) );
+		if ( is_wp_error( $profile ) ) {
+			wp_send_json_error( array( 'message' => $profile->get_error_message() ), 400 );
+		}
+		wp_send_json_success(
+			array(
+				'message' => __( 'Class profile loaded.', 'gospel-music-mastery' ),
+				'profile' => $profile,
+			)
+		);
 	}
 
 	/**
@@ -641,6 +1005,18 @@ class GMM_Ajax {
 		$args['date']      = sanitize_text_field( (string) $this->post( 'date' ) );
 		$args['date_from'] = sanitize_text_field( (string) $this->post( 'date_from' ) );
 		$args['date_to']   = sanitize_text_field( (string) $this->post( 'date_to' ) );
+		$args['specialty'] = sanitize_key( (string) $this->post( 'specialty' ) );
+		if ( ! $args['specialty'] ) {
+			$args['specialty'] = sanitize_key( (string) $this->post( 'at_specialty' ) );
+		}
+		$args['level']  = sanitize_key( (string) $this->post( 'level' ) );
+		$args['period'] = sanitize_key( (string) $this->post( 'period' ) );
+		if ( ! $args['level'] ) {
+			$args['level'] = sanitize_key( (string) $this->post( 'as_level' ) );
+		}
+		if ( ! $args['period'] ) {
+			$args['period'] = sanitize_key( (string) $this->post( 'as_period' ) );
+		}
 		return $args;
 	}
 
@@ -694,6 +1070,15 @@ class GMM_Ajax {
 		if ( class_exists( 'GMM_Admin_Dashboard' ) ) {
 			GMM_Admin_Dashboard::flush_cache();
 		}
+		if ( class_exists( 'GMM_Admin_Teachers' ) ) {
+			GMM_Admin_Teachers::flush_cache();
+		}
+		if ( class_exists( 'GMM_Admin_Students' ) ) {
+			GMM_Admin_Students::flush_cache();
+		}
+		if ( class_exists( 'GMM_Admin_Classes' ) ) {
+			GMM_Admin_Classes::flush_cache();
+		}
 		wp_send_json_success( array( 'message' => $message, 'data' => $result ) );
 	}
 
@@ -733,7 +1118,7 @@ class GMM_Ajax {
 		$row = is_array( $row ) ? $row : array();
 		$row['status'] = $status;
 
-		if ( 'active' === $status ) {
+		if ( in_array( $status, array( 'active', 'approved' ), true ) ) {
 			/**
 			 * Fires when a teacher application is approved.
 			 *
@@ -742,7 +1127,7 @@ class GMM_Ajax {
 			 * @param array<string, mixed> $row        Teacher row.
 			 */
 			do_action( 'gmm_teacher_approved', $teacher_id, $row );
-		} elseif ( 'inactive' === $status ) {
+		} elseif ( in_array( $status, array( 'inactive', 'rejected' ), true ) ) {
 			/**
 			 * Fires when a teacher application is rejected / deactivated.
 			 *

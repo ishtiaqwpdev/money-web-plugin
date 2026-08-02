@@ -81,6 +81,9 @@ class GMM_Plugin {
 		GMM_Admin_Pages::register_hooks( $this->loader );
 		GMM_Admin_Settings::register_hooks( $this->loader );
 		GMM_Admin_Dashboard::register_hooks( $this->loader );
+		GMM_Admin_Teachers::register_hooks( $this->loader );
+		GMM_Admin_Students::register_hooks( $this->loader );
+		GMM_Admin_Classes::register_hooks( $this->loader );
 	}
 
 	/**

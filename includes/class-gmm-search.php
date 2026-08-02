@@ -135,7 +135,9 @@ class GMM_Search {
 				'sort'       => $atts['sort'],
 				'per_page'   => $atts['per_page'],
 				'page'       => $atts['page'],
-				'status'     => 'published',
+				'statuses'   => function_exists( 'gmm_public_class_statuses' )
+					? gmm_public_class_statuses()
+					: array( 'approved', 'published' ),
 				'public'     => true,
 			)
 		);
@@ -225,7 +227,8 @@ class GMM_Search {
 
 		if ( $args['search'] ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where[]  = '(t.first_name LIKE %s OR t.last_name LIKE %s OR CONCAT(t.first_name, \' \', t.last_name) LIKE %s OR t.specialization LIKE %s OR t.experience LIKE %s OR t.bio LIKE %s)';
+			$where[]  = '(t.first_name LIKE %s OR t.last_name LIKE %s OR CONCAT(t.first_name, \' \', t.last_name) LIKE %s OR t.email LIKE %s OR t.specialization LIKE %s OR t.experience LIKE %s OR t.bio LIKE %s)';
+			$params[] = $like;
 			$params[] = $like;
 			$params[] = $like;
 			$params[] = $like;
@@ -347,9 +350,25 @@ class GMM_Search {
 		$where  = array( '1=1' );
 		$params = array();
 
-		if ( $args['status'] ) {
-			$where[]  = 'c.status = %s';
-			$params[] = $args['status'];
+		if ( ! empty( $args['statuses'] ) && is_array( $args['statuses'] ) ) {
+			$statuses = array_values( array_filter( array_map( 'sanitize_key', $args['statuses'] ) ) );
+			if ( ! empty( $statuses ) ) {
+				$placeholders = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+				$where[]      = "c.status IN ({$placeholders})";
+				foreach ( $statuses as $st ) {
+					$params[] = $st;
+				}
+			}
+		} elseif ( $args['status'] ) {
+			// Support UI "approved" as published|approved.
+			if ( 'approved' === $args['status'] ) {
+				$where[]  = 'c.status IN (%s, %s)';
+				$params[] = 'approved';
+				$params[] = 'published';
+			} else {
+				$where[]  = 'c.status = %s';
+				$params[] = $args['status'];
+			}
 		}
 
 		if ( $args['search'] ) {
@@ -549,6 +568,11 @@ class GMM_Search {
 		if ( $args['status'] ) {
 			$where[]  = 'status = %s';
 			$params[] = $args['status'];
+		}
+		if ( ! empty( $args['learning_level'] ) ) {
+			$like     = '%' . $wpdb->esc_like( sanitize_text_field( (string) $args['learning_level'] ) ) . '%';
+			$where[]  = 'learning_level LIKE %s';
+			$params[] = $like;
 		}
 		if ( $args['search'] ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
@@ -782,6 +806,9 @@ class GMM_Search {
 			'difficulty'     => isset( $args['difficulty'] ) ? sanitize_text_field( (string) $args['difficulty'] ) : '',
 			'rating'         => isset( $args['rating'] ) ? $args['rating'] : '',
 			'status'         => isset( $args['status'] ) ? sanitize_key( (string) $args['status'] ) : '',
+			'statuses'       => ( isset( $args['statuses'] ) && is_array( $args['statuses'] ) )
+				? array_values( array_filter( array_map( 'sanitize_key', $args['statuses'] ) ) )
+				: array(),
 			'sort'           => isset( $args['sort'] ) ? sanitize_key( (string) $args['sort'] ) : 'newest',
 			'date'           => isset( $args['date'] ) ? sanitize_text_field( (string) $args['date'] ) : '',
 			'date_from'      => isset( $args['date_from'] ) ? sanitize_text_field( (string) $args['date_from'] ) : '',
