@@ -256,11 +256,6 @@ class GMM_Pages {
 				'slug'      => 'gmm-admin-programs',
 				'shortcode' => '[gmm_admin_programs]',
 			),
-			'admin_blog'      => array(
-				'title'     => 'Admin Blog',
-				'slug'      => 'gmm-admin-blog',
-				'shortcode' => '[gmm_admin_blog]',
-			),
 			'admin_settings'  => array(
 				'title'     => 'Admin Settings',
 				'slug'      => 'gmm-admin-settings',

@@ -119,12 +119,6 @@ class GMM_Admin_Menu {
 				'callback'   => array( 'GMM_Admin_Pages', 'render_programs' ),
 			),
 			array(
-				'title'      => __( 'Blog', 'gospel-music-mastery' ),
-				'menu_title' => __( 'Blog', 'gospel-music-mastery' ),
-				'slug'       => 'gmm-blog',
-				'callback'   => array( 'GMM_Admin_Pages', 'render_blog' ),
-			),
-			array(
 				'title'      => __( 'Settings', 'gospel-music-mastery' ),
 				'menu_title' => __( 'Settings', 'gospel-music-mastery' ),
 				'slug'       => 'gmm-settings',

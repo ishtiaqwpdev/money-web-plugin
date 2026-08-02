@@ -27,7 +27,6 @@ class GMM_Admin_Pages {
 		'bookings'  => 'admin/bookings',
 		'payments'  => 'admin/payments',
 		'programs'  => 'admin/programs',
-		'blog'      => 'admin/blog',
 		'settings'  => 'admin/settings',
 	);
 
@@ -89,13 +88,6 @@ class GMM_Admin_Pages {
 	 */
 	public static function render_programs() {
 		gmm_admin_load_page( 'programs' );
-	}
-
-	/**
-	 * @return void
-	 */
-	public static function render_blog() {
-		gmm_admin_load_page( 'blog' );
 	}
 
 	/**
@@ -217,7 +209,6 @@ class GMM_Admin_Pages {
 			'bookings'  => __( 'Bookings', 'gospel-music-mastery' ),
 			'payments'  => __( 'Payments', 'gospel-music-mastery' ),
 			'programs'  => __( 'Programs', 'gospel-music-mastery' ),
-			'blog'      => __( 'Blog', 'gospel-music-mastery' ),
 			'settings'  => __( 'Settings', 'gospel-music-mastery' ),
 		);
 

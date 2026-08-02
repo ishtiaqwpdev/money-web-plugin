@@ -481,11 +481,6 @@ class GMM_Shortcodes {
 				'access'   => self::ACCESS_ADMIN,
 				'assets'   => 'dashboard',
 			),
-			'gmm_admin_blog'      => array(
-				'template' => 'admin/blog',
-				'access'   => self::ACCESS_ADMIN,
-				'assets'   => 'dashboard',
-			),
 			'gmm_admin_settings'  => array(
 				'template' => 'admin/settings',
 				'access'   => self::ACCESS_ADMIN,

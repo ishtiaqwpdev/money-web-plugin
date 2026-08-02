@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Load a GMM wp-admin page template by key.
  *
- * @param string $page Page key: dashboard|teachers|students|classes|bookings|payments|programs|blog|settings.
+ * @param string $page Page key: dashboard|teachers|students|classes|bookings|payments|programs|settings.
  * @return void
  */
 function gmm_admin_load_page( $page ) {
