@@ -506,11 +506,21 @@ class GMM_Assets {
 		if ( ! $post instanceof WP_Post ) {
 			$post = get_post();
 		}
-		if ( ! $post instanceof WP_Post || empty( $post->post_content ) ) {
+		if ( ! $post instanceof WP_Post ) {
 			return false;
 		}
 
-		$content = (string) $post->post_content;
+		$content = ! empty( $post->post_content ) ? (string) $post->post_content : '';
+
+		// Elementor / page-builder compatibility: scan stored builder JSON.
+		$builder = get_post_meta( $post->ID, '_elementor_data', true );
+		if ( is_string( $builder ) && '' !== $builder ) {
+			$content .= "\n" . $builder;
+		}
+
+		if ( '' === $content ) {
+			return false;
+		}
 
 		if ( null === $tags ) {
 			return ( false !== strpos( $content, '[gmm_' ) || false !== strpos( $content, 'gmm_' ) );

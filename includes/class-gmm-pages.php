@@ -189,6 +189,21 @@ class GMM_Pages {
 				'slug'      => 'book-lesson',
 				'shortcode' => '[gmm_booking_form]',
 			),
+			'class_search'       => array(
+				'title'     => 'Find Classes',
+				'slug'      => 'classes',
+				'shortcode' => '[gmm_class_search]',
+			),
+			'program_search'     => array(
+				'title'     => 'Programs',
+				'slug'      => 'programs',
+				'shortcode' => '[gmm_program_search]',
+			),
+			'reviews'            => array(
+				'title'     => 'Reviews',
+				'slug'      => 'reviews',
+				'shortcode' => '[gmm_reviews]',
+			),
 
 			// Teacher.
 			'teacher_login'        => array(

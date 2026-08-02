@@ -150,6 +150,12 @@ function gmm_get_template( $template, $args = array() ) {
  * Path is relative to templates/ without .php, e.g. 'student/dashboard'.
  * Prefer gmm_get_template() which adds prepared variables + override support.
  *
+ * Security:
+ * - Blocks path traversal (..)
+ * - Restricts to student|teacher|admin|public folders
+ * - Ensures resolved file stays under templates/
+ * - Prevents direct file inclusion outside the allow-list
+ *
  * @param string               $template Relative template path (no leading slash, no .php).
  * @param array<string, mixed> $args     Optional variables extracted into template scope.
  * @return string Buffered template output (empty string if missing/invalid).
@@ -181,7 +187,12 @@ function gmm_load_template( $template, $args = array() ) {
 		return '';
 	}
 
-	if ( ! preg_match( '/^(student|teacher|admin|public)\/[a-z0-9_-]+$/i', $template ) ) {
+	// Only allow known portal folders + safe slug filenames.
+	if ( ! preg_match( '/^(student|teacher|admin|public|emails)\/[a-z0-9_-]+$/i', $template ) ) {
+		return '';
+	}
+
+	if ( ! defined( 'GMM_PATH' ) ) {
 		return '';
 	}
 
@@ -191,6 +202,13 @@ function gmm_load_template( $template, $args = array() ) {
 	$base = wp_normalize_path( GMM_PATH . 'templates/' );
 	if ( 0 !== strpos( $file, $base ) || ! is_readable( $file ) ) {
 		do_action( 'gmm_missing_template', $template, $file );
+		return '';
+	}
+
+	// Reject if realpath escapes the templates directory (symlink / case tricks).
+	$real_file = realpath( $file );
+	$real_base = realpath( $base );
+	if ( false === $real_file || false === $real_base || 0 !== strpos( wp_normalize_path( $real_file ), wp_normalize_path( $real_base ) ) ) {
 		return '';
 	}
 

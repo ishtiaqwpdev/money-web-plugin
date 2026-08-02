@@ -55,6 +55,7 @@ require_once GMM_PATH . 'includes/class-gmm-assets.php';
 require_once GMM_PATH . 'includes/gmm-asset-functions.php';
 require_once GMM_PATH . 'includes/class-gmm-template-loader.php';
 require_once GMM_PATH . 'includes/gmm-template-functions.php';
+require_once GMM_PATH . 'public/class-gmm-shortcodes.php';
 require_once GMM_PATH . 'includes/class-gmm-shortcodes.php';
 require_once GMM_PATH . 'includes/class-gmm-pages.php';
 require_once GMM_PATH . 'admin/class-gmm-admin-menu.php';
