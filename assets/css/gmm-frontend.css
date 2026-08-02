@@ -1,0 +1,11 @@
+/**
+ * Gospel Music Mastery — Frontend (login / register / booking)
+ *
+ * Visual design comes from enqueued Eduka/Gospel CSS.
+ */
+
+.gmm-wrapper.gmm-frontend,
+.gmm-frontend {
+	display: block;
+	width: 100%;
+}

@@ -1,0 +1,418 @@
+/* Gospel Music Mastery — animation layer.
+   Purely additive: no colours, fonts, spacing or layout are changed here.
+   Reveal states only apply once animations.js puts `.gmm-anim` on <html>,
+   so the page stays fully visible if JS never runs. */
+
+:root {
+  --gmm-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --gmm-dur: 0.5s;
+  --gmm-dur-fast: 0.22s;
+  --gmm-lift: 0 14px 28px rgba(31, 41, 55, 0.12);
+  --gmm-glow: 0 8px 20px rgba(255, 165, 0, 0.38);
+}
+
+/* ==========================================================
+   1. Reusable reveal classes
+   ========================================================== */
+.gmm-anim .animate-fade,
+.gmm-anim .animate-slide-up,
+.gmm-anim .animate-scale {
+  opacity: 0;
+  transition:
+    opacity var(--gmm-dur) var(--gmm-ease),
+    transform var(--gmm-dur) var(--gmm-ease);
+  transition-delay: var(--gmm-delay, 0s);
+}
+
+.gmm-anim .animate-slide-up {
+  transform: translate3d(0, 24px, 0);
+}
+
+.gmm-anim .animate-scale {
+  transform: scale(0.96);
+}
+
+.gmm-anim .animate-fade.is-revealed,
+.gmm-anim .animate-slide-up.is-revealed,
+.gmm-anim .animate-scale.is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* ==========================================================
+   2. Page entrance
+   Opacity only — a transform here would turn `main` into the
+   containing block for the position:fixed mobile sidebars.
+   ========================================================== */
+@keyframes gmmPageIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.gmm-anim .main {
+  animation: gmmPageIn 0.4s var(--gmm-ease) both;
+}
+
+/* ==========================================================
+   3. Card hover — lift, shadow, subtle scale
+   ========================================================== */
+.animate-hover,
+.sd-stat-card,
+.td-stat-card,
+.sd-quick-card,
+.td-quick-card,
+.sd-teacher-card,
+.sd-lesson-card,
+.sl-lesson-card,
+.sl-next-card,
+.sf-card,
+.tm-card,
+.apr-card,
+.bk-card,
+.pay-method-card,
+.class-manage-card,
+.stp-related-card,
+.tp-class-card,
+.tp-info-card,
+.tp-review-card,
+.gmm-chart-card,
+.abl-featured-card,
+.ac-featured-card,
+.ap-earn-card,
+.portal-intro-card {
+  transition:
+    transform var(--gmm-dur-fast) var(--gmm-ease),
+    box-shadow var(--gmm-dur-fast) var(--gmm-ease),
+    border-color var(--gmm-dur-fast) var(--gmm-ease);
+}
+
+.animate-hover:hover,
+.sd-stat-card:hover,
+.td-stat-card:hover,
+.sd-quick-card:hover,
+.td-quick-card:hover,
+.sd-teacher-card:hover,
+.sd-lesson-card:hover,
+.sl-lesson-card:hover,
+.sl-next-card:hover,
+.sf-card:hover,
+.tm-card:hover,
+.apr-card:hover,
+.bk-card:hover,
+.pay-method-card:hover,
+.class-manage-card:hover,
+.stp-related-card:hover,
+.tp-class-card:hover,
+.tp-info-card:hover,
+.tp-review-card:hover,
+.gmm-chart-card:hover,
+.abl-featured-card:hover,
+.ac-featured-card:hover,
+.ap-earn-card:hover,
+.portal-intro-card:hover {
+  transform: translate3d(0, -4px, 0);
+  box-shadow: var(--gmm-lift);
+}
+
+/* Class-style cards get an orange border highlight instead of a heavy shadow */
+.class-manage-card:hover,
+.tp-class-card:hover,
+.sl-lesson-card:hover,
+.sf-card:hover {
+  border-color: var(--gospel-orange);
+}
+
+/* ==========================================================
+   4. Image zoom inside card media
+   .tm-card / .apr-card already ship their own zoom — these fill the gaps.
+   ========================================================== */
+.tp-class-media,
+.cd-hero-media {
+  overflow: hidden;
+}
+
+.tp-class-media img,
+.cd-hero-media img,
+.tm-card-media img,
+.apr-card-media img {
+  transition: transform 0.5s var(--gmm-ease);
+}
+
+.tp-class-card:hover .tp-class-media img {
+  transform: scale(1.06);
+}
+
+/* Avatars and thumbnails get a gentle pop, never a shape change */
+.at-avatar,
+.ac-thumb,
+.abl-thumb,
+.sb-teacher-cell img,
+.sd-lesson-teacher img,
+.sl-lesson-teacher img {
+  transition: transform var(--gmm-dur-fast) var(--gmm-ease);
+}
+
+tr:hover > td > .at-avatar,
+tr:hover > td > .ac-thumb,
+tr:hover > td > .abl-thumb {
+  transform: scale(1.08);
+}
+
+/* Fade images in once decoded */
+.gmm-anim img.gmm-img {
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.gmm-anim img.gmm-img.is-loaded {
+  opacity: 1;
+}
+
+/* ==========================================================
+   5. Buttons — lift, orange glow, press feedback
+   ========================================================== */
+.theme-btn,
+.theme-btn-outline {
+  transition:
+    transform var(--gmm-dur-fast) var(--gmm-ease),
+    box-shadow var(--gmm-dur-fast) var(--gmm-ease),
+    background-color 0.3s var(--gmm-ease),
+    color 0.3s var(--gmm-ease),
+    border-color 0.3s var(--gmm-ease);
+}
+
+.theme-btn:hover,
+.theme-btn:focus-visible {
+  transform: translate3d(0, -2px, 0) scale(1.015);
+  box-shadow: var(--gmm-glow);
+}
+
+.theme-btn:active {
+  transform: translate3d(0, 0, 0) scale(0.985);
+}
+
+.at-action-btn,
+.calendar-nav-btn,
+.bk-cal-nav,
+.class-menu-btn,
+.sf-heart-btn {
+  transition:
+    transform var(--gmm-dur-fast) var(--gmm-ease),
+    background-color var(--gmm-dur-fast) var(--gmm-ease),
+    border-color var(--gmm-dur-fast) var(--gmm-ease),
+    color var(--gmm-dur-fast) var(--gmm-ease);
+}
+
+.at-action-btn:hover,
+.calendar-nav-btn:hover,
+.bk-cal-nav:hover,
+.class-menu-btn:hover,
+.sf-heart-btn:hover {
+  transform: translate3d(0, -2px, 0);
+}
+
+/* Submit loading state */
+@keyframes gmmSpin {
+  to { transform: rotate(360deg); }
+}
+
+.theme-btn.is-loading,
+.theme-btn-outline.is-loading {
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.theme-btn.is-loading::after,
+.theme-btn-outline.is-loading::after {
+  content: "";
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-left: 9px;
+  vertical-align: -2px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: gmmSpin 0.7s linear infinite;
+}
+
+/* ==========================================================
+   6. Forms — focus ring and border easing
+   ========================================================== */
+.form-control,
+.form-select,
+.form-check-input {
+  transition:
+    border-color var(--gmm-dur-fast) var(--gmm-ease),
+    box-shadow var(--gmm-dur-fast) var(--gmm-ease),
+    background-color var(--gmm-dur-fast) var(--gmm-ease);
+}
+
+.form-control:focus,
+.form-select:focus {
+  box-shadow: 0 0 0 3px var(--gospel-orange-soft);
+}
+
+.form-check-input:checked {
+  transform: scale(1.05);
+}
+
+/* ==========================================================
+   7. Sidebar — hover slide, active easing, panel + backdrop
+   ========================================================== */
+.sd-nav-link,
+.td-nav-link,
+.ad-sub-link {
+  transition:
+    background-color var(--gmm-dur-fast) var(--gmm-ease),
+    color var(--gmm-dur-fast) var(--gmm-ease),
+    transform var(--gmm-dur-fast) var(--gmm-ease);
+}
+
+.sd-nav-link:hover,
+.td-nav-link:hover,
+.ad-sub-link:hover {
+  transform: translate3d(3px, 0, 0);
+}
+
+.sd-nav-link i,
+.td-nav-link i {
+  transition: transform var(--gmm-dur-fast) var(--gmm-ease);
+}
+
+.sd-nav-link:hover i,
+.td-nav-link:hover i,
+.sd-nav-link.active i,
+.td-nav-link.active i {
+  transform: scale(1.12);
+}
+
+@keyframes gmmFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sd-sidebar-backdrop,
+.td-sidebar-backdrop {
+  animation: gmmFadeIn 0.25s ease both;
+}
+
+@keyframes gmmSubmenuIn {
+  from { opacity: 0; transform: translate3d(0, -6px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+.ad-nav-group.is-open .ad-submenu {
+  animation: gmmSubmenuIn 0.25s var(--gmm-ease) both;
+}
+
+.ad-nav-caret {
+  transition: transform var(--gmm-dur-fast) var(--gmm-ease);
+}
+
+/* ==========================================================
+   8. Modals — backdrop fade, content slide down
+   ========================================================== */
+.modal.fade .modal-dialog {
+  opacity: 0;
+  transform: translate3d(0, -28px, 0) scale(0.98);
+  transition:
+    opacity 0.28s var(--gmm-ease),
+    transform 0.28s var(--gmm-ease);
+}
+
+.modal.show .modal-dialog {
+  opacity: 1;
+  transform: none;
+}
+
+.modal-backdrop.fade {
+  transition: opacity 0.25s ease;
+}
+
+/* ==========================================================
+   9. Header navigation — hover underline, dropdown easing
+   ========================================================== */
+.navbar .nav-item .nav-link {
+  position: relative;
+}
+
+.navbar .nav-item > .nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 4px;
+  height: 2px;
+  width: 0;
+  background: var(--gospel-orange);
+  transition: width 0.28s var(--gmm-ease);
+}
+
+.navbar .nav-item:hover > .nav-link::after,
+.navbar .nav-item > .nav-link.active::after {
+  width: 100%;
+}
+
+@media all and (min-width: 992px) {
+  .navbar .nav-item .dropdown-menu {
+    transition:
+      opacity 0.25s var(--gmm-ease),
+      transform 0.25s var(--gmm-ease),
+      visibility 0.25s;
+  }
+}
+
+/* ==========================================================
+   10. Tables — row hover easing, staggered row reveal
+   ========================================================== */
+.td-table tbody tr,
+.sb-table tbody tr,
+.at-table tbody tr,
+.ad-table tbody tr {
+  transition: background-color var(--gmm-dur-fast) var(--gmm-ease);
+}
+
+/* ==========================================================
+   11. Badges, pills and progress
+   ========================================================== */
+.sb-badge,
+.td-badge,
+.sf-count-pill {
+  transition: transform var(--gmm-dur-fast) var(--gmm-ease);
+}
+
+.progress-bar {
+  transition: width 0.9s var(--gmm-ease);
+}
+
+/* ==========================================================
+   12. Accessibility — honour reduced-motion
+   ========================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .gmm-anim .animate-fade,
+  .gmm-anim .animate-slide-up,
+  .gmm-anim .animate-scale,
+  .gmm-anim img.gmm-img {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .gmm-anim .main,
+  .sd-sidebar-backdrop,
+  .td-sidebar-backdrop,
+  .ad-nav-group.is-open .ad-submenu {
+    animation: none;
+  }
+
+  .theme-btn:hover,
+  .theme-btn:focus-visible,
+  .animate-hover:hover,
+  .sd-stat-card:hover,
+  .td-stat-card:hover,
+  .tm-card:hover,
+  .apr-card:hover,
+  .gmm-chart-card:hover {
+    transform: none;
+  }
+}

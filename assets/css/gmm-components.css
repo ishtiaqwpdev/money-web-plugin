@@ -1,0 +1,43 @@
+/**
+ * Gospel Music Mastery — Shared UI components (plugin only)
+ */
+
+.gmm-card {
+	display: block;
+}
+
+.gmm-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.gmm-container {
+	width: 100%;
+	max-width: 100%;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.gmm-modal {
+	display: none;
+}
+
+.gmm-modal.is-open {
+	display: block;
+}
+
+.gmm-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.gmm-form-group {
+	margin-bottom: 1rem;
+}
+
+.gmm-form-control {
+	display: block;
+	width: 100%;
+}

@@ -1,0 +1,34 @@
+/**
+ * Gospel Music Mastery — Dashboard (admin / teacher / student portals)
+ *
+ * Design classes (td-card, sd-*, theme-btn, etc.) remain in gospel-custom.css.
+ */
+
+.gmm-wrapper.gmm-dashboard {
+	display: block;
+	width: 100%;
+}
+
+.gmm-dashboard .gmm-chart-grid {
+	display: grid;
+	gap: 1.25rem;
+}
+
+.gmm-dashboard .gmm-chart-grid.is-triple {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gmm-dashboard .gmm-chart-wrap {
+	min-height: 220px;
+}
+
+.gmm-dashboard .gmm-chart-wrap.is-doughnut {
+	max-width: 320px;
+	margin-inline: auto;
+}
+
+@media (max-width: 991px) {
+	.gmm-dashboard .gmm-chart-grid.is-triple {
+		grid-template-columns: 1fr;
+	}
+}

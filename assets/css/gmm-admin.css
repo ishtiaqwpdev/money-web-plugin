@@ -1,0 +1,29 @@
+/**
+ * Gospel Music Mastery — WP Admin plugin screens only.
+ *
+ * Loaded only on Gospel Music Mastery admin pages.
+ * Does not restyle core WordPress admin outside GMM screens.
+ */
+
+.gmm-wrapper.gmm-admin,
+.gmm-admin .gmm-wrapper {
+	max-width: 100%;
+}
+
+/* Keep admin content readable inside WP wrap without fighting Eduka layout */
+.toplevel_page_gmm-dashboard .gmm-wrapper,
+.gospel-music-mastery_page_gmm-teachers .gmm-wrapper,
+.gospel-music-mastery_page_gmm-students .gmm-wrapper,
+.gospel-music-mastery_page_gmm-classes .gmm-wrapper,
+.gospel-music-mastery_page_gmm-bookings .gmm-wrapper,
+.gospel-music-mastery_page_gmm-payments .gmm-wrapper,
+.gospel-music-mastery_page_gmm-programs .gmm-wrapper,
+.gospel-music-mastery_page_gmm-blog .gmm-wrapper,
+.gospel-music-mastery_page_gmm-settings .gmm-wrapper,
+[class*="gmm-"] .gmm-wrapper {
+	margin: 0;
+}
+
+.gmm-admin-notice {
+	margin: 12px 0;
+}

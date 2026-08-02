@@ -1,0 +1,834 @@
+/* ==========================================================
+   Gospel Music Mastery — shared dashboard UI components
+   Loaded only on admin / teacher / student system pages.
+   Does not target theme header, footer, or breadcrumb.
+   Desktop page layouts (grids, sidebars) stay unchanged.
+   ========================================================== */
+
+:root {
+  --gmm-radius: 12px;
+  --gmm-radius-sm: 10px;
+  --gmm-radius-pill: 50px;
+  --gmm-shadow: 0 4px 14px rgba(31, 41, 55, 0.06);
+  --gmm-shadow-hover: 0 10px 24px rgba(31, 41, 55, 0.1);
+  --gmm-btn-h: 44px;
+  --gmm-btn-radius: 10px;
+  --gmm-btn-pad-x: 22px;
+  --gmm-focus: 0 0 0 3px var(--gospel-orange-soft);
+  --gmm-success-bg: var(--gospel-orange-soft, rgba(255, 165, 0, 0.14));
+  --gmm-success-fg: var(--gospel-orange-text, #B45309);
+  --gmm-warning-bg: rgba(234, 179, 8, 0.15);
+  --gmm-warning-fg: #a16207;
+  --gmm-danger-bg: rgba(192, 57, 43, 0.12);
+  --gmm-danger-fg: #c0392b;
+  --gmm-neutral-bg: rgba(100, 116, 139, 0.14);
+  --gmm-neutral-fg: #475569;
+}
+
+/* ==========================================================
+   1. BUTTON SYSTEM
+   ========================================================== */
+.theme-btn,
+.theme-btn-outline,
+.theme-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--gmm-btn-h);
+  padding: 10px var(--gmm-btn-pad-x);
+  border-radius: var(--gmm-btn-radius);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  vertical-align: middle;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
+}
+
+/* Keep dashboard shells intact: never force mobile Menu into the desktop grid */
+.sd-sidebar-toggle.theme-btn,
+.sd-sidebar-toggle.theme-btn-outline,
+.td-sidebar-toggle.theme-btn,
+.td-sidebar-toggle.theme-btn-outline {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .sd-sidebar-toggle.theme-btn,
+  .sd-sidebar-toggle.theme-btn-outline,
+  .td-sidebar-toggle.theme-btn,
+  .td-sidebar-toggle.theme-btn-outline {
+    display: inline-flex;
+  }
+}
+
+/* Primary — Gospel orange */
+.theme-btn:not(.theme-btn-outline):not(.theme-btn-danger) {
+  background: var(--gospel-orange);
+  color: var(--color-white);
+  border: 2px solid var(--gospel-orange);
+}
+
+.theme-btn:not(.theme-btn-outline):not(.theme-btn-danger):hover,
+.theme-btn:not(.theme-btn-outline):not(.theme-btn-danger):focus {
+  background: var(--gospel-orange-dark);
+  border-color: var(--gospel-orange-dark);
+  color: var(--color-white);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(255, 165, 0, 0.35);
+}
+
+/* Secondary — white + orange border, fills orange on hover */
+.theme-btn-outline {
+  background: var(--color-white) !important;
+  color: var(--gospel-orange) !important;
+  border: 2px solid var(--gospel-orange) !important;
+}
+
+.theme-btn-outline::before {
+  background: var(--gospel-orange) !important;
+}
+
+.theme-btn-outline:hover,
+.theme-btn-outline:focus {
+  background: var(--gospel-orange) !important;
+  color: var(--color-white) !important;
+  border-color: var(--gospel-orange) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(255, 165, 0, 0.28);
+}
+
+/* Danger — delete / reject / suspend */
+.theme-btn-danger,
+.theme-btn.theme-btn-danger,
+.aset-danger-btn {
+  background: #c0392b !important;
+  color: var(--color-white) !important;
+  border: 2px solid #c0392b !important;
+}
+
+.theme-btn-danger::before,
+.aset-danger-btn::before {
+  background: #a93226 !important;
+}
+
+.theme-btn-danger:hover,
+.theme-btn-danger:focus,
+.aset-danger-btn:hover,
+.aset-danger-btn:focus {
+  background: #a93226 !important;
+  border-color: #a93226 !important;
+  color: var(--color-white) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(192, 57, 43, 0.3);
+}
+
+.theme-btn:active,
+.theme-btn-outline:active,
+.theme-btn-danger:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.theme-btn:disabled,
+.theme-btn-outline:disabled,
+.theme-btn-danger:disabled,
+.theme-btn.is-loading,
+.theme-btn-outline.is-loading,
+.theme-btn-danger.is-loading {
+  pointer-events: none;
+  opacity: 0.72;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Compact table / inline actions keep the same radius & motion */
+.td-action-btn,
+.sd-action-btn,
+.at-action-btn,
+.sb-actions .theme-btn,
+.sb-actions .theme-btn-outline {
+  min-height: 36px;
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: var(--gmm-btn-radius);
+}
+
+/* ==========================================================
+   2. CARD SYSTEM
+   ========================================================== */
+.sd-card,
+.td-card,
+.sd-stat-card,
+.td-stat-card,
+.ad-stat-card,
+.gmm-chart-card,
+.tm-card,
+.apr-card,
+.sf-card,
+.sl-lesson-card,
+.class-manage-card,
+.abl-featured-card,
+.ac-featured-card,
+.availability-calendar-card,
+.availability-slots-card,
+.withdrawal-equal-card,
+.portal-intro-card,
+.aset-danger-card,
+.ss-danger-card,
+.sd-welcome-card {
+  border-radius: var(--gmm-radius);
+  box-shadow: var(--gmm-shadow);
+  border: 1px solid var(--gospel-border);
+  background: var(--color-white);
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.sd-card,
+.td-card {
+  padding: 22px;
+}
+
+.sd-stat-card,
+.td-stat-card,
+.ad-stat-card {
+  padding: 18px 16px;
+  height: 100%;
+}
+
+.sd-stat-card:hover,
+.td-stat-card:hover,
+.ad-stat-card:hover,
+.tm-card:hover,
+.apr-card:hover,
+.sf-card:hover,
+.sl-lesson-card:hover,
+.class-manage-card:hover,
+.gmm-chart-card:hover,
+.abl-featured-card:hover,
+.ac-featured-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--gmm-shadow-hover);
+}
+
+/* ==========================================================
+   3. STATUS BADGES
+   ========================================================== */
+.sb-badge,
+.td-badge,
+.sd-badge,
+.apr-status,
+.at-status,
+.as-status,
+.ac-status,
+.ab-status,
+.abl-status,
+.ap-status,
+.booking-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: var(--gmm-radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  border: none;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Success */
+.sb-badge.is-confirmed,
+.sb-badge.is-completed,
+.sb-badge.is-active,
+.sb-badge.is-paid,
+.sb-badge.is-approved,
+.td-badge.is-confirmed,
+.td-badge.is-active,
+.td-badge.is-published,
+.sd-badge.is-confirmed,
+.sd-badge.is-active {
+  background: var(--gmm-success-bg);
+  color: var(--gmm-success-fg);
+}
+
+/* Warning */
+.sb-badge.is-pending,
+.sb-badge.is-draft,
+.td-badge.is-pending,
+.td-badge.is-draft,
+.td-badge.is-scheduled,
+.sd-badge.is-pending,
+.sd-badge.is-scheduled {
+  background: var(--gmm-warning-bg);
+  color: var(--gmm-warning-fg);
+}
+
+/* Danger */
+.sb-badge.is-cancelled,
+.sb-badge.is-rejected,
+.sb-badge.is-failed,
+.td-badge.is-cancelled,
+.td-badge.is-rejected,
+.sd-badge.is-cancelled {
+  background: var(--gmm-danger-bg);
+  color: var(--gmm-danger-fg);
+}
+
+/* Neutral */
+.sb-badge.is-inactive,
+.sb-badge.is-suspended,
+.td-badge.is-inactive,
+.sd-badge.is-inactive {
+  background: var(--gmm-neutral-bg);
+  color: var(--gmm-neutral-fg);
+}
+
+/* ==========================================================
+   4. TABLE SYSTEM
+   ========================================================== */
+.td-table thead th,
+.at-table thead th,
+.sb-table thead th,
+.ad-table thead th {
+  font-family: var(--heading-font);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--gospel-heading);
+  background: var(--gospel-bg-light);
+  border-bottom: 1px solid var(--gospel-border);
+  padding: 14px 16px;
+  white-space: nowrap;
+}
+
+.td-table tbody td,
+.at-table tbody td,
+.sb-table tbody td,
+.ad-table tbody td {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--gospel-body);
+  border-bottom: 1px solid var(--gospel-border);
+  vertical-align: middle;
+}
+
+.td-table tbody tr:hover td,
+.at-table tbody tr:hover td,
+.sb-table tbody tr:hover td,
+.ad-table tbody tr:hover td {
+  background: rgba(255, 165, 0, 0.04);
+}
+
+.sb-actions,
+.at-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Shared empty row / table empty */
+.gmm-table-empty td,
+.td-table .gmm-table-empty td {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.gmm-table-empty:hover td {
+  background: transparent !important;
+}
+
+/* ==========================================================
+   5. MODAL SYSTEM
+   ========================================================== */
+.modal.fade .modal-dialog {
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+.gospel-demo-modal .modal-content,
+.sd-shell .modal-content,
+.td-shell .modal-content,
+.admin-portal-page .modal-content,
+.student-portal-page .modal-content,
+.teacher-dashboard-area .modal-content,
+.student-dashboard-area .modal-content {
+  border: none;
+  border-radius: var(--gmm-radius);
+  box-shadow: var(--gmm-shadow-hover);
+  overflow: hidden;
+}
+
+.gospel-demo-modal .modal-header,
+.sd-shell .modal-header,
+.td-shell .modal-header,
+.admin-portal-page .modal-header,
+.student-portal-page .modal-header,
+.teacher-dashboard-area .modal-header,
+.student-dashboard-area .modal-header {
+  border-bottom: 1px solid var(--gospel-border);
+  padding: 16px 20px;
+  align-items: center;
+}
+
+.gospel-demo-modal .modal-title,
+.sd-shell .modal-title,
+.td-shell .modal-title,
+.admin-portal-page .modal-title,
+.student-portal-page .modal-title,
+.teacher-dashboard-area .modal-title,
+.student-dashboard-area .modal-title {
+  font-family: var(--heading-font);
+  font-weight: 800;
+  color: var(--gospel-heading);
+  font-size: 20px;
+}
+
+.gospel-demo-modal .modal-body,
+.sd-shell .modal-body,
+.td-shell .modal-body,
+.admin-portal-page .modal-body,
+.student-portal-page .modal-body,
+.teacher-dashboard-area .modal-body,
+.student-dashboard-area .modal-body {
+  padding: 20px;
+  color: var(--gospel-body);
+}
+
+.gospel-demo-modal .modal-footer,
+.sd-shell .modal-footer,
+.td-shell .modal-footer,
+.admin-portal-page .modal-footer,
+.student-portal-page .modal-footer,
+.teacher-dashboard-area .modal-footer,
+.student-dashboard-area .modal-footer {
+  border-top: 1px solid var(--gospel-border);
+  padding: 14px 20px 18px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-close {
+  box-shadow: none;
+  opacity: 0.65;
+}
+
+.btn-close:hover,
+.btn-close:focus {
+  opacity: 1;
+}
+
+/* ==========================================================
+   6. FORM COMPONENTS
+   ========================================================== */
+.sd-shell label,
+.td-shell label,
+.admin-portal-page label,
+.student-portal-page label,
+.teacher-dashboard-area label,
+.student-dashboard-area label,
+.form-label {
+  color: var(--gospel-ink);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.sd-shell .form-control,
+.td-shell .form-control,
+.admin-portal-page .form-control,
+.student-portal-page .form-control,
+.teacher-dashboard-area .form-control,
+.student-dashboard-area .form-control,
+.sd-shell .form-select,
+.td-shell .form-select,
+.admin-portal-page .form-select,
+.student-portal-page .form-select,
+.teacher-dashboard-area .form-select,
+.student-dashboard-area .form-select {
+  min-height: 44px;
+  border: 1px solid var(--gospel-border);
+  border-radius: var(--gmm-radius-sm);
+  color: var(--gospel-ink);
+  background: var(--color-white);
+  padding: 10px 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sd-shell textarea.form-control,
+.td-shell textarea.form-control,
+.admin-portal-page textarea.form-control,
+.student-portal-page textarea.form-control,
+.teacher-dashboard-area textarea.form-control,
+.student-dashboard-area textarea.form-control {
+  min-height: 110px;
+}
+
+.sd-shell .form-control:focus,
+.td-shell .form-control:focus,
+.admin-portal-page .form-control:focus,
+.student-portal-page .form-control:focus,
+.teacher-dashboard-area .form-control:focus,
+.student-dashboard-area .form-control:focus,
+.sd-shell .form-select:focus,
+.td-shell .form-select:focus,
+.admin-portal-page .form-select:focus,
+.student-portal-page .form-select:focus,
+.teacher-dashboard-area .form-select:focus,
+.student-dashboard-area .form-select:focus {
+  border-color: var(--gospel-orange);
+  box-shadow: var(--gmm-focus);
+  outline: none;
+}
+
+.sd-shell .form-check-input,
+.td-shell .form-check-input,
+.admin-portal-page .form-check-input,
+.student-portal-page .form-check-input,
+.teacher-dashboard-area .form-check-input,
+.student-dashboard-area .form-check-input {
+  width: 1.15em;
+  height: 1.15em;
+  border-color: var(--gospel-border);
+  cursor: pointer;
+}
+
+.sd-shell .form-check-input:checked,
+.td-shell .form-check-input:checked,
+.admin-portal-page .form-check-input:checked,
+.student-portal-page .form-check-input:checked,
+.teacher-dashboard-area .form-check-input:checked,
+.student-dashboard-area .form-check-input:checked {
+  background-color: var(--gospel-orange);
+  border-color: var(--gospel-orange);
+}
+
+.sd-shell .form-switch .form-check-input,
+.td-shell .form-switch .form-check-input,
+.admin-portal-page .form-switch .form-check-input,
+.student-portal-page .form-switch .form-check-input,
+.teacher-dashboard-area .form-switch .form-check-input,
+.student-dashboard-area .form-switch .form-check-input {
+  width: 2.4em;
+  height: 1.3em;
+}
+
+.sd-shell .form-group,
+.td-shell .form-group,
+.admin-portal-page .form-group,
+.student-portal-page .form-group,
+.teacher-dashboard-area .form-group,
+.student-dashboard-area .form-group {
+  margin-bottom: 18px;
+}
+
+/* ==========================================================
+   7. EMPTY STATES
+   ========================================================== */
+.gmm-empty,
+.td-empty-state,
+.sl-empty,
+.sf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--gospel-body);
+  background: var(--gospel-bg-light);
+  border: 1px dashed var(--gospel-border);
+  border-radius: var(--gmm-radius);
+}
+
+.gmm-empty-icon,
+.td-empty-state .gmm-empty-icon,
+.sl-empty i,
+.gmm-empty > i {
+  width: 56px;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--gospel-orange-soft);
+  color: var(--gospel-orange);
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.gmm-empty-title {
+  font-family: var(--heading-font);
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--gospel-heading);
+  margin: 0;
+}
+
+.gmm-empty-text,
+.td-empty-state {
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 360px;
+}
+
+.gmm-empty .theme-btn,
+.gmm-empty .theme-btn-outline,
+.td-empty-state .theme-btn,
+.sl-empty .theme-btn {
+  margin-top: 10px;
+}
+
+/* Plain <p class="td-empty-state"> stays readable */
+p.td-empty-state {
+  display: block;
+}
+
+p.td-empty-state.gmm-empty {
+  display: flex;
+}
+
+/* ==========================================================
+   8. LOADING STATES
+   ========================================================== */
+@keyframes gmm-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gmm-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.theme-btn.is-loading::after,
+.theme-btn-outline.is-loading::after,
+.theme-btn-danger.is-loading::after {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-left: 2px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: gmm-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.theme-btn-outline.is-loading::after {
+  border-color: rgba(31, 41, 55, 0.25);
+  border-top-color: currentColor;
+}
+
+/* Card / block skeleton */
+.gmm-skeleton {
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+  color: transparent !important;
+  border-color: transparent !important;
+  background: linear-gradient(
+    90deg,
+    #eef1f5 25%,
+    #f8fafc 37%,
+    #eef1f5 63%
+  ) !important;
+  background-size: 400% 100% !important;
+  animation: gmm-shimmer 1.35s ease infinite;
+  box-shadow: none !important;
+}
+
+.gmm-skeleton * {
+  visibility: hidden !important;
+}
+
+.gmm-skeleton-line {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  background: linear-gradient(
+    90deg,
+    #e5e7eb 25%,
+    #f3f4f6 37%,
+    #e5e7eb 63%
+  );
+  background-size: 400% 100%;
+  animation: gmm-shimmer 1.35s ease infinite;
+}
+
+.gmm-skeleton-line.is-lg {
+  height: 18px;
+  width: 60%;
+}
+
+.gmm-skeleton-line.is-sm {
+  width: 40%;
+}
+
+/* Table loading rows */
+.gmm-table-loading td {
+  padding: 16px;
+}
+
+.gmm-table-loading .gmm-skeleton-line {
+  margin: 0;
+  height: 14px;
+  visibility: visible !important;
+}
+
+.gmm-table-loading * {
+  visibility: visible;
+}
+
+/* Full-page / panel spinner */
+.gmm-spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--gospel-orange-soft);
+  border-top-color: var(--gospel-orange);
+  border-radius: 50%;
+  animation: gmm-spin 0.75s linear infinite;
+}
+
+.gmm-loading-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 36px 20px;
+  color: var(--gospel-body);
+  font-weight: 600;
+}
+
+/* ==========================================================
+   Mobile-friendly component tweaks (layout grids untouched)
+   ========================================================== */
+@media (max-width: 768px) {
+  .theme-btn,
+  .theme-btn-outline,
+  .theme-btn-danger {
+    max-width: 100%;
+  }
+
+  .sb-badge,
+  .td-badge,
+  .sd-badge {
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+/* ==========================================================
+   GLOBAL BUTTON LOCK (loads last on portal pages)
+   Force orange brand — never black/ink fills on buttons.
+   Hover text always white.
+   ========================================================== */
+
+/* Eduka ::before wipe — disable on all theme buttons */
+.theme-btn::before,
+.theme-btn-outline::before,
+.theme-btn.theme-btn-outline::before,
+a.theme-btn::before,
+a.theme-btn-outline::before,
+button.theme-btn::before,
+button.theme-btn-outline::before {
+  content: none !important;
+  display: none !important;
+  transform: none !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: none !important;
+}
+
+.theme-btn > i::before,
+.theme-btn-outline > i::before {
+  display: inline-block !important;
+  opacity: 1 !important;
+  transform: none !important;
+  background: none !important;
+  width: auto !important;
+  height: auto !important;
+  position: static !important;
+}
+
+.theme-btn:not(.theme-btn-outline):not(.theme-btn-danger):not(.apr-delete-btn):not(.aset-danger-btn),
+a.theme-btn:not(.theme-btn-outline):not(.theme-btn-danger),
+button.theme-btn:not(.theme-btn-outline):not(.theme-btn-danger) {
+  background: var(--gospel-orange) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-color: var(--gospel-orange) !important;
+}
+
+.theme-btn:not(.theme-btn-outline):not(.theme-btn-danger):hover,
+.theme-btn:not(.theme-btn-outline):not(.theme-btn-danger):focus {
+  background: var(--gospel-orange-dark) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-color: var(--gospel-orange-dark) !important;
+}
+
+.theme-btn:not(.theme-btn-outline):not(.theme-btn-danger) i {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+.theme-btn-outline:not(.theme-btn-danger):not(.apr-delete-btn):not(.aset-danger-btn),
+.theme-btn.theme-btn-outline:not(.theme-btn-danger),
+a.theme-btn.theme-btn-outline:not(.theme-btn-danger),
+button.theme-btn.theme-btn-outline:not(.theme-btn-danger) {
+  background: #fff !important;
+  color: var(--gospel-orange) !important;
+  -webkit-text-fill-color: var(--gospel-orange) !important;
+  border: 2px solid var(--gospel-orange) !important;
+}
+
+.theme-btn-outline:not(.theme-btn-danger):hover,
+.theme-btn-outline:not(.theme-btn-danger):focus,
+.theme-btn.theme-btn-outline:not(.theme-btn-danger):hover,
+.theme-btn.theme-btn-outline:not(.theme-btn-danger):focus,
+a.theme-btn.theme-btn-outline:hover,
+button.theme-btn.theme-btn-outline:hover,
+.sb-actions .theme-btn.theme-btn-outline:hover,
+.sb-actions .theme-btn-outline:hover,
+.sl-actions .theme-btn-outline:hover,
+.booking-actions .theme-btn-outline:hover,
+.sd-action-btn:hover,
+.td-action-btn.theme-btn-outline:hover {
+  background: var(--gospel-orange) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-color: var(--gospel-orange) !important;
+  box-shadow: 0 8px 18px rgba(255, 165, 0, 0.28);
+}
+
+.theme-btn-outline:hover i,
+.theme-btn-outline:focus i,
+.theme-btn.theme-btn-outline:hover i,
+.sb-actions .theme-btn-outline:hover i {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+.theme-btn-outline:not(.theme-btn-danger):not(:hover):not(:focus) i,
+.theme-btn.theme-btn-outline:not(:hover):not(:focus) i {
+  color: var(--gospel-orange) !important;
+  -webkit-text-fill-color: var(--gospel-orange) !important;
+}
