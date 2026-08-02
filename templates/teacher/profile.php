@@ -9,11 +9,78 @@
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! isset( $user_name ) ) {
+if ( ! empty( $gmm_teacher_pending ) || ! empty( $gmm_teacher_denied ) ) {
+	$msg = ! empty( $gmm_teacher_pending )
+		? __( 'Your account is waiting for approval.', 'gospel-music-mastery' )
+		: __( 'You do not have permission to view this profile.', 'gospel-music-mastery' );
+	echo '<div class="gmm-wrapper gmm-dashboard"><div class="teacher-dashboard-area py-120"><div class="container"><div class="td-card"><div class="td-card-head"><h3>' . esc_html( $msg ) . '</h3></div></div></div></div></div>';
+	return;
+}
+
+$profile = ( isset( $profile ) && is_array( $profile ) ) ? $profile : array();
+$profile_stats = ( isset( $profile_stats ) && is_array( $profile_stats ) ) ? $profile_stats : array(
+	'rating'   => 0,
+	'students' => 0,
+	'classes'  => 0,
+);
+$logout_url    = isset( $logout_url ) ? $logout_url : ( function_exists( 'gmm_logout_url' ) ? gmm_logout_url( home_url( '/' ) ) : wp_logout_url( home_url( '/' ) ) );
+$flash_success = isset( $flash_success ) ? (string) $flash_success : '';
+$flash_error   = isset( $flash_error ) ? (string) $flash_error : '';
+
+$p = wp_parse_args(
+	$profile,
+	array(
+		'first_name'     => '',
+		'last_name'      => '',
+		'display_name'   => '',
+		'username'       => '',
+		'email'          => '',
+		'phone'          => '',
+		'specialization' => '',
+		'skill'          => '',
+		'experience'     => '',
+		'bio'            => '',
+		'timezone'       => 'Eastern Time',
+		'facebook'       => '',
+		'instagram'      => '',
+		'youtube'        => '',
+		'website'        => '',
+		'image_url'      => gmm_design_asset_url( 'assets/img/team/01.jpg' ),
+		'rating'         => 0,
+		'status'         => '',
+	)
+);
+
+$skill = $p['skill'] ? $p['skill'] : $p['specialization'];
+$role  = $skill ? $skill : 'Gospel Music Instructor';
+
+if ( ! isset( $user_name ) || '' === $user_name ) {
+	$user_name = $p['display_name'] ? $p['display_name'] : trim( $p['first_name'] . ' ' . $p['last_name'] );
+}
+if ( ! $user_name ) {
 	$user_name = 'Guest';
 }
 if ( ! isset( $user_first_name ) ) {
-	$user_first_name = $user_name;
+	$user_first_name = $p['first_name'] ? $p['first_name'] : $user_name;
+}
+
+$rating_disp = (float) $profile_stats['rating'] > 0
+	? number_format_i18n( (float) $profile_stats['rating'], 1 )
+	: ( (float) $p['rating'] > 0 ? number_format_i18n( (float) $p['rating'], 1 ) : '—' );
+
+$skill_options = array(
+	'Piano & Keys'         => array( 'Gospel Piano Instructor', 'Worship Piano Instructor', 'Keyboard Instructor', 'Organ Instructor' ),
+	'Vocals'               => array( 'Vocal Coach', 'Gospel Vocal Instructor', 'Worship Vocal Coach', 'Choir Director', 'Backing Vocals Coach' ),
+	'Guitar & Bass'        => array( 'Guitar Instructor', 'Acoustic Guitar Instructor', 'Electric Guitar Instructor', 'Bass Guitar Instructor' ),
+	'Drums & Percussion'   => array( 'Drums Instructor', 'Percussion Instructor' ),
+	'Worship & Leadership' => array( 'Worship Leader', 'Worship Leadership Coach', 'Music Director', 'Band Director' ),
+	'Theory & Production'  => array( 'Music Theory Instructor', 'Songwriting Coach', 'Music Production Instructor', 'Audio Engineering Instructor' ),
+	'Other'                => array( 'Violin Instructor', 'Saxophone Instructor', 'Trumpet Instructor', 'Flute Instructor', 'General Music Teacher' ),
+);
+
+$tz_options = array( 'Eastern Time', 'Central Time', 'Mountain Time', 'Pacific Time', 'UTC' );
+if ( $p['timezone'] && ! in_array( $p['timezone'], $tz_options, true ) ) {
+	array_unshift( $tz_options, $p['timezone'] );
 }
 ?>
 <div class="gmm-wrapper gmm-dashboard">
@@ -26,15 +93,15 @@ if ( ! isset( $user_first_name ) ) {
                 <div class="td-profile-header">
                     <div class="td-profile-main">
                         <div class="td-profile-avatar">
-                            <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
+                            <img src="<?php echo esc_url( $p['image_url'] ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
                         </div>
                         <div class="td-profile-meta">
                             <h2><?php echo esc_html( $user_name ); ?></h2>
-                            <span class="td-role">Gospel Music Instructor</span>
+                            <span class="td-role"><?php echo esc_html( $role ); ?></span>
                             <div class="td-profile-stats">
-                                <span class="td-stat-item"><i class="fas fa-star"></i> 4.9</span>
-                                <span class="td-stat-item"><i class="far fa-users"></i> 25 Students</span>
-                                <span class="td-stat-item"><i class="far fa-books"></i> 12 Classes</span>
+                                <span class="td-stat-item"><i class="fas fa-star"></i> <?php echo esc_html( $rating_disp ); ?></span>
+                                <span class="td-stat-item"><i class="far fa-users"></i> <?php echo esc_html( (int) $profile_stats['students'] ); ?> Students</span>
+                                <span class="td-stat-item"><i class="far fa-books"></i> <?php echo esc_html( (int) $profile_stats['classes'] ); ?> Classes</span>
                             </div>
                         </div>
                     </div>
@@ -60,7 +127,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'teacher_dashboard' ) ); ?>" class="td-nav-link" data-nav="messages"><i class="far fa-comments"></i> Messages</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'teacher_withdrawals' ) ); ?>" class="td-nav-link" data-nav="withdrawals"><i class="far fa-wallet"></i> Withdrawals</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'teacher_settings' ) ); ?>" class="td-nav-link" data-nav="settings"><i class="far fa-gear"></i> Settings</a></li>
-                                <li><a href="<?php echo esc_url( gmm_get_page_link( 'teacher_login' ) ); ?>" class="td-nav-link td-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
+                                <li><a href="<?php echo esc_url( $logout_url ); ?>" class="td-nav-link td-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
                             </ul>
                         </nav>
                     </aside>
@@ -71,10 +138,16 @@ if ( ! isset( $user_first_name ) ) {
 
                         <form action="#" method="post" id="teacher-profile-form" class="teacher-profile-form" novalidate>
 
-                            <div class="gospel-alert gospel-alert-success" id="profile-success" hidden>
+                            <div class="gospel-alert gospel-alert-success" id="profile-success" <?php echo $flash_success ? '' : 'hidden'; ?>>
                                 <i class="far fa-circle-check"></i>
-                                <span>Profile changes saved successfully (demo).</span>
+                                <span><?php echo $flash_success ? esc_html( $flash_success ) : esc_html__( 'Profile changes saved successfully.', 'gospel-music-mastery' ); ?></span>
                             </div>
+							<?php if ( $flash_error ) : ?>
+                            <div class="gospel-alert gospel-alert-error" role="alert">
+                                <i class="far fa-circle-exclamation"></i>
+                                <span><?php echo esc_html( $flash_error ); ?></span>
+                            </div>
+							<?php endif; ?>
 
                             <!-- profile information -->
                             <section class="td-card">
@@ -89,13 +162,13 @@ if ( ! isset( $user_first_name ) ) {
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-first-name">First Name</label>
-                                            <input type="text" class="form-control" id="profile-first-name" name="first_name" value="John" autocomplete="given-name">
+                                            <input type="text" class="form-control" id="profile-first-name" name="first_name" value="<?php echo esc_attr( $p['first_name'] ); ?>" autocomplete="given-name">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-last-name">Last Name</label>
-                                            <input type="text" class="form-control" id="profile-last-name" name="last_name" value="Smith" autocomplete="family-name">
+                                            <input type="text" class="form-control" id="profile-last-name" name="last_name" value="<?php echo esc_attr( $p['last_name'] ); ?>" autocomplete="family-name">
                                         </div>
                                     </div>
                                 </div>
@@ -104,13 +177,13 @@ if ( ! isset( $user_first_name ) ) {
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-username">Username</label>
-                                            <input type="text" class="form-control" id="profile-username" name="username" value="johnsmith" autocomplete="username">
+                                            <input type="text" class="form-control" id="profile-username" name="username" value="<?php echo esc_attr( $p['username'] ); ?>" autocomplete="username" readonly>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-email">Email</label>
-                                            <input type="email" class="form-control" id="profile-email" name="email" value="john@example.com" autocomplete="email">
+                                            <input type="email" class="form-control" id="profile-email" name="email" value="<?php echo esc_attr( $p['email'] ); ?>" autocomplete="email">
                                         </div>
                                     </div>
                                 </div>
@@ -119,7 +192,7 @@ if ( ! isset( $user_first_name ) ) {
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-phone">Phone</label>
-                                            <input type="tel" class="form-control" id="profile-phone" name="phone" value="+1 615 555 4821" autocomplete="tel">
+                                            <input type="tel" class="form-control" id="profile-phone" name="phone" value="<?php echo esc_attr( $p['phone'] ); ?>" autocomplete="tel">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -127,48 +200,13 @@ if ( ! isset( $user_first_name ) ) {
                                             <label for="profile-skill">Skill / Occupation</label>
                                             <select class="form-control form-select" id="profile-skill" name="skill">
                                                 <option value="">Select skill / occupation</option>
-                                                <optgroup label="Piano &amp; Keys">
-                                                    <option value="Gospel Piano Instructor" selected>Gospel Piano Instructor</option>
-                                                    <option value="Worship Piano Instructor">Worship Piano Instructor</option>
-                                                    <option value="Keyboard Instructor">Keyboard Instructor</option>
-                                                    <option value="Organ Instructor">Organ Instructor</option>
+												<?php foreach ( $skill_options as $group => $options ) : ?>
+                                                <optgroup label="<?php echo esc_attr( $group ); ?>">
+													<?php foreach ( $options as $opt ) : ?>
+                                                    <option value="<?php echo esc_attr( $opt ); ?>" <?php selected( $skill, $opt ); ?>><?php echo esc_html( $opt ); ?></option>
+													<?php endforeach; ?>
                                                 </optgroup>
-                                                <optgroup label="Vocals">
-                                                    <option value="Vocal Coach">Vocal Coach</option>
-                                                    <option value="Gospel Vocal Instructor">Gospel Vocal Instructor</option>
-                                                    <option value="Worship Vocal Coach">Worship Vocal Coach</option>
-                                                    <option value="Choir Director">Choir Director</option>
-                                                    <option value="Backing Vocals Coach">Backing Vocals Coach</option>
-                                                </optgroup>
-                                                <optgroup label="Guitar &amp; Bass">
-                                                    <option value="Guitar Instructor">Guitar Instructor</option>
-                                                    <option value="Acoustic Guitar Instructor">Acoustic Guitar Instructor</option>
-                                                    <option value="Electric Guitar Instructor">Electric Guitar Instructor</option>
-                                                    <option value="Bass Guitar Instructor">Bass Guitar Instructor</option>
-                                                </optgroup>
-                                                <optgroup label="Drums &amp; Percussion">
-                                                    <option value="Drums Instructor">Drums Instructor</option>
-                                                    <option value="Percussion Instructor">Percussion Instructor</option>
-                                                </optgroup>
-                                                <optgroup label="Worship &amp; Leadership">
-                                                    <option value="Worship Leader">Worship Leader</option>
-                                                    <option value="Worship Leadership Coach">Worship Leadership Coach</option>
-                                                    <option value="Music Director">Music Director</option>
-                                                    <option value="Band Director">Band Director</option>
-                                                </optgroup>
-                                                <optgroup label="Theory &amp; Production">
-                                                    <option value="Music Theory Instructor">Music Theory Instructor</option>
-                                                    <option value="Songwriting Coach">Songwriting Coach</option>
-                                                    <option value="Music Production Instructor">Music Production Instructor</option>
-                                                    <option value="Audio Engineering Instructor">Audio Engineering Instructor</option>
-                                                </optgroup>
-                                                <optgroup label="Other">
-                                                    <option value="Violin Instructor">Violin Instructor</option>
-                                                    <option value="Saxophone Instructor">Saxophone Instructor</option>
-                                                    <option value="Trumpet Instructor">Trumpet Instructor</option>
-                                                    <option value="Flute Instructor">Flute Instructor</option>
-                                                    <option value="General Music Teacher">General Music Teacher</option>
-                                                </optgroup>
+												<?php endforeach; ?>
                                             </select>
                                         </div>
                                     </div>
@@ -178,15 +216,17 @@ if ( ! isset( $user_first_name ) ) {
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-timezone">Timezone</label>
-                                            <select class="form-control form-select" id="profile-timezone" name="timezone" data-selected="America/New_York">
-                                                <option value="Eastern Time" selected>Eastern Time</option>
+                                            <select class="form-control form-select" id="profile-timezone" name="timezone" data-selected="<?php echo esc_attr( $p['timezone'] ); ?>">
+												<?php foreach ( $tz_options as $tz ) : ?>
+                                                <option value="<?php echo esc_attr( $tz ); ?>" <?php selected( $p['timezone'], $tz ); ?>><?php echo esc_html( $tz ); ?></option>
+												<?php endforeach; ?>
                                             </select>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-display-name">Display Name</label>
-                                            <input type="text" class="form-control" id="profile-display-name" name="display_name" value="John Smith">
+                                            <input type="text" class="form-control" id="profile-display-name" name="display_name" value="<?php echo esc_attr( $p['display_name'] ); ?>">
                                         </div>
                                     </div>
                                 </div>
@@ -202,7 +242,7 @@ if ( ! isset( $user_first_name ) ) {
                                 </div>
                                 <div class="form-group mb-0">
                                     <label for="profile-bio">About You</label>
-                                    <textarea class="form-control" id="profile-bio" name="biography" rows="6" maxlength="500">Experienced gospel music instructor helping students grow in piano, worship leadership, and musical confidence.</textarea>
+                                    <textarea class="form-control" id="profile-bio" name="biography" rows="6" maxlength="500"><?php echo esc_textarea( $p['bio'] ); ?></textarea>
                                     <div class="bio-counter-row">
                                         <span class="field-note">Visible on your public teacher profile.</span>
                                         <span class="bio-counter" id="bio-counter">0 / 500</span>
@@ -223,13 +263,13 @@ if ( ! isset( $user_first_name ) ) {
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-facebook"><i class="fab fa-facebook-f"></i> Facebook</label>
-                                            <input type="url" class="form-control" id="profile-facebook" name="facebook" value="https://facebook.com/johnsmith" placeholder="https://facebook.com/username">
+                                            <input type="url" class="form-control" id="profile-facebook" name="facebook" value="<?php echo esc_attr( $p['facebook'] ); ?>" placeholder="https://facebook.com/username">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-instagram"><i class="fab fa-instagram"></i> Instagram</label>
-                                            <input type="url" class="form-control" id="profile-instagram" name="instagram" value="https://instagram.com/johnsmith" placeholder="https://instagram.com/username">
+                                            <input type="url" class="form-control" id="profile-instagram" name="instagram" value="<?php echo esc_attr( $p['instagram'] ); ?>" placeholder="https://instagram.com/username">
                                         </div>
                                     </div>
                                 </div>
@@ -238,13 +278,13 @@ if ( ! isset( $user_first_name ) ) {
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="profile-youtube"><i class="fab fa-youtube"></i> YouTube</label>
-                                            <input type="url" class="form-control" id="profile-youtube" name="youtube" value="https://youtube.com/@johnsmith" placeholder="https://youtube.com/@channel">
+                                            <input type="url" class="form-control" id="profile-youtube" name="youtube" value="<?php echo esc_attr( $p['youtube'] ); ?>" placeholder="https://youtube.com/@channel">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-0">
                                             <label for="profile-website"><i class="far fa-globe"></i> Website</label>
-                                            <input type="url" class="form-control" id="profile-website" name="website" value="https://johnsmithmusic.com" placeholder="https://yourwebsite.com">
+                                            <input type="url" class="form-control" id="profile-website" name="website" value="<?php echo esc_attr( $p['website'] ); ?>" placeholder="https://yourwebsite.com">
                                         </div>
                                     </div>
                                 </div>
@@ -265,4 +305,3 @@ if ( ! isset( $user_first_name ) ) {
 
     
 </div><!-- .gmm-wrapper -->
-

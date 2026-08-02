@@ -172,15 +172,52 @@ class GMM_Favourites {
 	}
 
 	/**
+	 * Whether teacher is favourited by a student.
+	 *
+	 * @param int $teacher_id gmm_teachers.id.
+	 * @param int $user_id    WP user ID.
+	 * @return bool
+	 */
+	public static function is_favourite( $teacher_id, $user_id = 0 ) {
+		if ( class_exists( 'GMM_Teacher_Profile_Public' ) ) {
+			return GMM_Teacher_Profile_Public::is_favourite( $teacher_id, $user_id );
+		}
+		$user_id    = absint( $user_id ) ? absint( $user_id ) : get_current_user_id();
+		$teacher_id = absint( $teacher_id );
+		if ( ! $user_id || ! $teacher_id || ! class_exists( 'GMM_Student' ) ) {
+			return false;
+		}
+		$student_id = GMM_Student::get_student_id( $user_id );
+		if ( ! $student_id ) {
+			return false;
+		}
+		global $wpdb;
+		$table = GMM_Database::table( 'favourites' );
+		$id    = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table} WHERE student_id = %d AND teacher_id = %d LIMIT 1",
+				$student_id,
+				$teacher_id
+			)
+		);
+		return ! empty( $id );
+	}
+
+	/**
 	 * @param int $teacher_id Teacher row ID.
 	 * @return bool
 	 */
 	private static function teacher_exists( $teacher_id ) {
 		global $wpdb;
 		$table = GMM_Database::table( 'teachers' );
-		$id    = $wpdb->get_var(
-			$wpdb->prepare( "SELECT id FROM {$table} WHERE id = %d LIMIT 1", $teacher_id )
+		$row   = $wpdb->get_row(
+			$wpdb->prepare( "SELECT id, status FROM {$table} WHERE id = %d LIMIT 1", $teacher_id ),
+			ARRAY_A
 		);
-		return ! empty( $id );
+		if ( ! is_array( $row ) ) {
+			return false;
+		}
+		$status = sanitize_key( (string) $row['status'] );
+		return in_array( $status, array( 'approved', 'active' ), true );
 	}
 }

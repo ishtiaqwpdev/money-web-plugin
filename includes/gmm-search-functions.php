@@ -14,6 +14,9 @@ defined( 'ABSPATH' ) || exit;
  * @return array<string, mixed>
  */
 function gmm_search_teachers( $args = array() ) {
+	if ( class_exists( 'GMM_Teacher_Search' ) && ! empty( $args['public'] ) ) {
+		return GMM_Teacher_Search::search( $args );
+	}
 	if ( ! class_exists( 'GMM_Search' ) ) {
 		return array(
 			'items'       => array(),

@@ -173,6 +173,23 @@ class GMM_Pages {
 				'shortcode' => '[gmm_student_settings]',
 			),
 
+			// Public.
+			'teachers'           => array(
+				'title'     => 'Find Teachers',
+				'slug'      => 'teachers',
+				'shortcode' => '[gmm_teacher_search]',
+			),
+			'teacher_public_profile' => array(
+				'title'     => 'Teacher Profile',
+				'slug'      => 'teacher-public-profile',
+				'shortcode' => '[gmm_teacher_public_profile]',
+			),
+			'booking_form'       => array(
+				'title'     => 'Book a Lesson',
+				'slug'      => 'book-lesson',
+				'shortcode' => '[gmm_booking_form]',
+			),
+
 			// Teacher.
 			'teacher_login'        => array(
 				'title'     => 'Teacher Login',

@@ -58,7 +58,10 @@ class GMM_Student {
 
 		switch ( $tag ) {
 			case 'gmm_student_dashboard':
-				$args['dashboard_data'] = gmm_get_student_dashboard_data( $user_id );
+				// GMM_Student_Dashboard injects full payload at priority 25.
+				if ( ! class_exists( 'GMM_Student_Dashboard' ) ) {
+					$args['dashboard_data'] = gmm_get_student_dashboard_data( $user_id );
+				}
 				break;
 			case 'gmm_student_lessons':
 				$args['lessons'] = class_exists( 'GMM_Student_Lessons' )
@@ -76,9 +79,7 @@ class GMM_Student {
 					: array();
 				break;
 			case 'gmm_student_payments':
-				$args['payments'] = class_exists( 'GMM_Student_Payments' )
-					? GMM_Student_Payments::get_payment_history( $user_id )
-					: array();
+				// Enriched by GMM_Student_Payments::inject_shortcode_args (priority 30).
 				break;
 		}
 
@@ -324,13 +325,23 @@ class GMM_Student {
 			'first_name'     => 'sanitize_text_field',
 			'last_name'      => 'sanitize_text_field',
 			'phone'          => 'sanitize_text_field',
-			'profile_image'  => 'esc_url_raw',
 			'learning_level' => 'sanitize_text_field',
 		);
 
 		foreach ( $map as $key => $cb ) {
 			if ( array_key_exists( $key, $data ) ) {
 				$clean[ $key ] = call_user_func( $cb, (string) $data[ $key ] );
+			}
+		}
+
+		if ( array_key_exists( 'profile_image', $data ) ) {
+			$raw = (string) $data['profile_image'];
+			if ( '' === $raw ) {
+				$clean['profile_image'] = '';
+			} elseif ( absint( $raw ) ) {
+				$clean['profile_image'] = (string) absint( $raw );
+			} else {
+				$clean['profile_image'] = esc_url_raw( $raw );
 			}
 		}
 

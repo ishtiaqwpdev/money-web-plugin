@@ -20,7 +20,7 @@ class GMM_Database {
 	 *
 	 * @var string
 	 */
-	const DB_VERSION = '1.4.0';
+	const DB_VERSION = '1.5.0';
 
 	/**
 	 * Option key storing installed DB version.
@@ -235,7 +235,7 @@ class GMM_Database {
 			available_date date NOT NULL DEFAULT '0000-00-00',
 			start_time time NOT NULL DEFAULT '00:00:00',
 			end_time time NOT NULL DEFAULT '00:00:00',
-			status varchar(20) NOT NULL DEFAULT 'open',
+			status varchar(20) NOT NULL DEFAULT 'available',
 			created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 			PRIMARY KEY  (id),
 			KEY teacher_id (teacher_id),
@@ -302,6 +302,23 @@ class GMM_Database {
 			KEY created_at (created_at)
 		) {$charset_collate};";
 
+		$withdrawals = self::table( 'withdrawals' );
+		$sql[]       = "CREATE TABLE {$withdrawals} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			teacher_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			amount decimal(10,2) NOT NULL DEFAULT 0.00,
+			payment_method varchar(50) NOT NULL DEFAULT '',
+			account_details text NULL,
+			status varchar(20) NOT NULL DEFAULT 'pending',
+			admin_note text NULL,
+			created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			updated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			PRIMARY KEY  (id),
+			KEY teacher_id (teacher_id),
+			KEY status (status),
+			KEY created_at (created_at)
+		) {$charset_collate};";
+
 		return $sql;
 	}
 
@@ -323,6 +340,7 @@ class GMM_Database {
 			'blog_posts',
 			'favourites',
 			'notifications',
+			'withdrawals',
 		);
 	}
 }

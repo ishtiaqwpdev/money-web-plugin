@@ -111,23 +111,23 @@ class GMM_Ajax {
 		$args = $this->get_search_args();
 		// Non-admins only receive public teacher fields (no email/phone/user_id).
 		if ( ! current_user_can( 'manage_options' ) ) {
-			$args['public'] = true;
-			if ( empty( $args['status'] ) ) {
-				$args['status'] = 'active';
-			}
+			$args['public']   = true;
+			$args['statuses'] = array( 'approved', 'active' );
+			unset( $args['status'] );
 		}
 		$this->send_search_result( gmm_search_teachers( $args ), __( 'Teachers loaded.', 'gospel-music-mastery' ) );
 	}
 
 	/**
-	 * Public teacher search (active only).
+	 * Public teacher search (approved only).
 	 *
 	 * @return void
 	 */
 	public function search_teachers_public() {
 		$this->verify_request();
-		$args           = $this->get_search_args();
-		$args['status'] = 'active';
+		$args             = $this->get_search_args();
+		$args['statuses'] = array( 'approved', 'active' );
+		unset( $args['status'] );
 		$args['public'] = true;
 		$this->send_search_result( gmm_search_teachers( $args ), __( 'Teachers loaded.', 'gospel-music-mastery' ) );
 	}
@@ -511,9 +511,10 @@ class GMM_Ajax {
 			'last_name'             => $this->post( 'last_name' ),
 			'email'                 => $this->post( 'email' ),
 			'phone'                 => $this->post( 'phone' ),
-			'learning_level'        => $this->post( 'learning_level' ),
+			'learning_level'        => $this->post( 'learning_level' ) ? $this->post( 'learning_level' ) : $this->post( 'experience_level' ),
+			'learning_goals'        => $this->post( 'learning_goals' ),
 			'preferred_instruments' => $this->post( 'preferred_instruments' ),
-			'bio'                   => $this->post( 'bio' ),
+			'bio'                   => $this->post( 'bio' ) ? $this->post( 'bio' ) : $this->post( 'about_me' ),
 		);
 
 		$result = function_exists( 'gmm_update_student_profile' )
@@ -704,9 +705,11 @@ class GMM_Ajax {
 			'notes'        => $this->post( 'notes' ),
 		);
 
-		$result = function_exists( 'gmm_create_booking' )
-			? gmm_create_booking( $data, '' )
-			: new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
+		$result = function_exists( 'gmm_create_student_booking' )
+			? gmm_create_student_booking( $data, '' )
+			: ( function_exists( 'gmm_create_booking' )
+				? gmm_create_booking( $data, '' )
+				: new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) ) );
 
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
@@ -762,8 +765,12 @@ class GMM_Ajax {
 			}
 			$result = GMM_Admin_Bookings::cancel( $booking_id );
 		} elseif ( current_user_can( 'manage_options' ) || gmm_is_teacher( $user_id ) ) {
+			$reason = sanitize_textarea_field( (string) $this->post( 'reason' ) );
+			if ( '1' !== (string) $this->post( 'confirm' ) ) {
+				wp_send_json_error( array( 'message' => __( 'Confirmation required.', 'gospel-music-mastery' ) ), 400 );
+			}
 			$result = function_exists( 'gmm_teacher_cancel_booking' )
-				? gmm_teacher_cancel_booking( $booking_id, $user_id, '' )
+				? gmm_teacher_cancel_booking( $booking_id, $user_id, '', $reason )
 				: new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
 		} else {
 			$result = function_exists( 'gmm_student_cancel_booking' )
@@ -1201,6 +1208,24 @@ class GMM_Ajax {
 	}
 
 	/**
+	 * Read a POST list (array or comma-separated string).
+	 *
+	 * @param string $key Key.
+	 * @return array<int, string>
+	 */
+	private function post_list( $key ) {
+		$raw = $this->post( $key );
+		if ( is_array( $raw ) ) {
+			return array_values( array_filter( array_map( 'sanitize_text_field', $raw ) ) );
+		}
+		if ( is_string( $raw ) && '' !== $raw ) {
+			$parts = array_map( 'trim', explode( ',', $raw ) );
+			return array_values( array_filter( array_map( 'sanitize_text_field', $parts ) ) );
+		}
+		return array();
+	}
+
+	/**
 	 * @return array<string, mixed>
 	 */
 	private function get_search_args() {
@@ -1214,6 +1239,7 @@ class GMM_Ajax {
 			'name'           => sanitize_text_field( (string) $this->post( 'name' ) ),
 			'specialization' => sanitize_text_field( (string) $this->post( 'specialization' ) ),
 			'instrument'     => sanitize_text_field( (string) $this->post( 'instrument' ) ),
+			'instruments'    => $this->post_list( 'instruments' ),
 			'experience'     => sanitize_text_field( (string) $this->post( 'experience' ) ),
 			'status'         => sanitize_key( (string) $this->post( 'status' ) ),
 			'category'       => sanitize_text_field( (string) $this->post( 'category' ) ),

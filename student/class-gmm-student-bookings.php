@@ -32,6 +32,9 @@ class GMM_Student_Bookings {
 		// Prefer central booking engine (availability + conflict checks).
 		if ( function_exists( 'gmm_create_booking' ) ) {
 			$data = is_array( $data ) ? $data : array();
+			if ( function_exists( 'gmm_create_student_booking' ) ) {
+				return gmm_create_student_booking( $data );
+			}
 			return gmm_create_booking( $data );
 		}
 
@@ -126,6 +129,10 @@ class GMM_Student_Bookings {
 		$auth = self::authorize_manage( $user_id );
 		if ( is_wp_error( $auth ) ) {
 			return $auth;
+		}
+
+		if ( class_exists( 'GMM_Booking_Flow' ) ) {
+			return GMM_Booking_Flow::cancel_student_booking( $booking_id, $user_id, '' );
 		}
 
 		if ( function_exists( 'gmm_student_cancel_booking' ) ) {

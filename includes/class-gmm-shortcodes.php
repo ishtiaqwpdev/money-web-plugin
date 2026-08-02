@@ -101,7 +101,8 @@ class GMM_Shortcodes {
 
 		$atts = shortcode_atts(
 			array(
-				'class' => '',
+				'class'      => '',
+				'teacher_id' => 0,
 			),
 			is_array( $atts ) ? $atts : array(),
 			$tag
@@ -177,8 +178,9 @@ class GMM_Shortcodes {
 				break;
 
 			case self::ACCESS_STUDENT:
-				// Prepared: students (admins often preview). Full ACL later.
-				$allowed = function_exists( 'gmm_is_student' ) && ( gmm_is_student() || gmm_is_admin() );
+				$allowed = function_exists( 'gmm_student_can_access_dashboard' )
+					? gmm_student_can_access_dashboard()
+					: ( function_exists( 'gmm_is_student' ) && ( gmm_is_student() || gmm_is_admin() ) );
 				break;
 
 			case self::ACCESS_TEACHER:
@@ -378,7 +380,7 @@ class GMM_Shortcodes {
 				'assets'   => 'dashboard',
 			),
 			'gmm_booking_form'       => array(
-				'template' => 'student/booking-form',
+				'template' => 'public/booking-form',
 				'access'   => self::ACCESS_STUDENT,
 				'assets'   => 'frontend',
 			),
@@ -396,6 +398,18 @@ class GMM_Shortcodes {
 				'template' => 'student/settings',
 				'access'   => self::ACCESS_STUDENT,
 				'assets'   => 'dashboard',
+			),
+
+			// Public discovery.
+			'gmm_teacher_search'     => array(
+				'template' => 'public/teachers',
+				'access'   => self::ACCESS_PUBLIC,
+				'assets'   => 'frontend',
+			),
+			'gmm_teacher_public_profile' => array(
+				'template' => 'public/teacher-profile',
+				'access'   => self::ACCESS_PUBLIC,
+				'assets'   => 'frontend',
 			),
 
 			// Teacher.

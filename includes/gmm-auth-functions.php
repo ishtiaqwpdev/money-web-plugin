@@ -15,10 +15,62 @@ defined( 'ABSPATH' ) || exit;
  * @return int|WP_Error User ID.
  */
 function gmm_student_register( $data, $nonce = '' ) {
+	if ( class_exists( 'GMM_Student_Auth' ) ) {
+		return GMM_Student_Auth::register( $data, $nonce );
+	}
 	if ( ! class_exists( 'GMM_Auth' ) ) {
 		return new WP_Error( 'gmm_missing', __( 'Authentication system unavailable.', 'gospel-music-mastery' ) );
 	}
 	return GMM_Auth::student_register( $data, $nonce );
+}
+
+/**
+ * Log in a student via the student portal.
+ *
+ * @param string $login    Username or email.
+ * @param string $password Password.
+ * @param bool   $remember Remember me.
+ * @param string $nonce    Optional nonce.
+ * @return WP_User|WP_Error
+ */
+function gmm_student_login( $login, $password, $remember = false, $nonce = '' ) {
+	if ( class_exists( 'GMM_Student_Auth' ) ) {
+		return GMM_Student_Auth::login( $login, $password, $remember, $nonce );
+	}
+	return gmm_login_user( $login, $password, $remember, class_exists( 'GMM_Roles' ) ? GMM_Roles::ROLE_STUDENT : 'gmm_student', $nonce );
+}
+
+/**
+ * Whether the user can access the student dashboard.
+ *
+ * @param int $user_id Optional WP user ID.
+ * @return bool
+ */
+function gmm_student_can_access_dashboard( $user_id = 0 ) {
+	if ( class_exists( 'GMM_Student_Auth' ) ) {
+		return GMM_Student_Auth::can_access_dashboard( $user_id );
+	}
+	$user_id = absint( $user_id ) ? absint( $user_id ) : get_current_user_id();
+	if ( ! $user_id || ! is_user_logged_in() ) {
+		return false;
+	}
+	if ( function_exists( 'gmm_is_admin' ) && gmm_is_admin( $user_id ) ) {
+		return true;
+	}
+	return function_exists( 'gmm_is_student' ) && gmm_is_student( $user_id );
+}
+
+/**
+ * Require student dashboard access or redirect to login.
+ *
+ * @return void
+ */
+function gmm_require_student_dashboard() {
+	if ( class_exists( 'GMM_Student_Auth' ) ) {
+		GMM_Student_Auth::require_dashboard_access();
+		return;
+	}
+	gmm_require_student();
 }
 
 /**

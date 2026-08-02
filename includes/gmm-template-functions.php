@@ -181,7 +181,7 @@ function gmm_load_template( $template, $args = array() ) {
 		return '';
 	}
 
-	if ( ! preg_match( '/^(student|teacher|admin)\/[a-z0-9_-]+$/i', $template ) ) {
+	if ( ! preg_match( '/^(student|teacher|admin|public)\/[a-z0-9_-]+$/i', $template ) ) {
 		return '';
 	}
 

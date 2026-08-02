@@ -9,12 +9,67 @@
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! isset( $user_name ) ) {
-	$user_name = 'Guest';
+if ( ! empty( $gmm_student_denied ) ) {
+	$msg = __( 'Please sign in with a student account to view this dashboard.', 'gospel-music-mastery' );
+	echo '<div class="gmm-wrapper gmm-dashboard"><div class="student-dashboard-area py-120"><div class="container"><div class="sd-card"><div class="sd-card-head"><h3>' . esc_html( $msg ) . '</h3></div></div></div></div></div>';
+	return;
 }
-if ( ! isset( $user_first_name ) ) {
-	$user_first_name = $user_name;
+
+$stats = ( isset( $stats ) && is_array( $stats ) ) ? $stats : array();
+$stats = wp_parse_args(
+	$stats,
+	array(
+		'total_lessons'      => 0,
+		'enrolled_classes'   => 0,
+		'upcoming_lessons'   => 0,
+		'completed_lessons'  => 0,
+		'favourite_teachers' => 0,
+		'total_payments'     => 0,
+		'pending_payments'   => 0,
+	)
+);
+
+$profile_summary     = ( isset( $profile_summary ) && is_array( $profile_summary ) ) ? $profile_summary : array();
+$upcoming_lessons    = ( isset( $upcoming_lessons ) && is_array( $upcoming_lessons ) ) ? $upcoming_lessons : array();
+$recent_lessons      = ( isset( $recent_lessons ) && is_array( $recent_lessons ) ) ? $recent_lessons : array();
+$favourite_teachers  = ( isset( $favourite_teachers ) && is_array( $favourite_teachers ) ) ? $favourite_teachers : array();
+$payment_summary     = ( isset( $payment_summary ) && is_array( $payment_summary ) ) ? $payment_summary : array();
+$activity            = ( isset( $activity ) && is_array( $activity ) ) ? $activity : array();
+$completion          = ( isset( $completion ) && is_array( $completion ) ) ? $completion : array( 'percent' => 0, 'items' => array() );
+$links               = ( isset( $links ) && is_array( $links ) ) ? $links : array();
+$logout_url          = isset( $logout_url ) ? $logout_url : ( function_exists( 'gmm_logout_url' ) ? gmm_logout_url( home_url( '/' ) ) : wp_logout_url( home_url( '/' ) ) );
+
+if ( ! isset( $user_name ) || '' === $user_name ) {
+	$user_name = isset( $profile_summary['name'] ) ? $profile_summary['name'] : 'Guest';
 }
+if ( ! isset( $user_first_name ) || '' === $user_first_name ) {
+	$user_first_name = isset( $profile_summary['first_name'] ) && $profile_summary['first_name']
+		? $profile_summary['first_name']
+		: $user_name;
+}
+
+$avatar_url = ! empty( $profile_summary['image_url'] )
+	? $profile_summary['image_url']
+	: gmm_design_asset_url( 'assets/img/team/02.jpg' );
+$level_label = ! empty( $profile_summary['learning_level'] )
+	? (string) $profile_summary['learning_level']
+	: __( 'Not set', 'gospel-music-mastery' );
+$instrument_label = ! empty( $profile_summary['instruments'] )
+	? (string) $profile_summary['instruments']
+	: __( 'Gospel Music', 'gospel-music-mastery' );
+$pct = isset( $completion['percent'] ) ? absint( $completion['percent'] ) : 0;
+
+$link_teachers  = ! empty( $links['teachers'] ) ? $links['teachers'] : gmm_get_page_link( 'student_favourites' );
+$link_lessons   = ! empty( $links['lessons'] ) ? $links['lessons'] : gmm_get_page_link( 'student_lessons' );
+$link_bookings  = ! empty( $links['bookings'] ) ? $links['bookings'] : gmm_get_page_link( 'student_bookings' );
+$link_profile   = ! empty( $links['profile'] ) ? $links['profile'] : gmm_get_page_link( 'student_profile' );
+$link_payments  = ! empty( $links['payments'] ) ? $links['payments'] : gmm_get_page_link( 'student_payments' );
+$link_favourites = ! empty( $links['favourites'] ) ? $links['favourites'] : gmm_get_page_link( 'student_favourites' );
+$link_book      = ! empty( $links['book'] ) ? $links['book'] : $link_bookings;
+
+$total_paid_label = isset( $payment_summary['total_paid'] )
+	? '$' . number_format_i18n( (float) $payment_summary['total_paid'], 2 )
+	: '$0.00';
 ?>
 <div class="gmm-wrapper gmm-dashboard">
 
@@ -26,19 +81,19 @@ if ( ! isset( $user_first_name ) ) {
                 <div class="sd-profile-header">
                     <div class="sd-profile-main">
                         <div class="sd-profile-avatar">
-                            <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
+                            <img src="<?php echo esc_url( $avatar_url ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
                         </div>
                         <div class="sd-profile-meta">
                             <h2><?php echo esc_html( $user_name ); ?></h2>
                             <span class="sd-role">Music Student</span>
                             <div class="sd-profile-stats">
-                                <span class="sd-stat-item"><i class="far fa-signal"></i> Learning Level: Intermediate</span>
-                                <span class="sd-stat-item"><i class="far fa-music"></i> Gospel Piano</span>
+                                <span class="sd-stat-item"><i class="far fa-signal"></i> Learning Level: <?php echo esc_html( $level_label ); ?></span>
+                                <span class="sd-stat-item"><i class="far fa-music"></i> <?php echo esc_html( $instrument_label ); ?></span>
                             </div>
                         </div>
                     </div>
                     <div class="sd-profile-actions">
-                        <a href="teachers.html" class="theme-btn"><i class="far fa-search"></i> Find New Teachers</a>
+                        <a href="<?php echo esc_url( $link_teachers ); ?>" class="theme-btn"><i class="far fa-search"></i> Find New Teachers</a>
                     </div>
                 </div>
 
@@ -60,7 +115,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'student_favourites' ) ); ?>" class="sd-nav-link" data-nav="favourites"><i class="far fa-heart"></i> Favourite Teachers</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'student_payments' ) ); ?>" class="sd-nav-link" data-nav="payments"><i class="far fa-credit-card"></i> Payments</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'student_settings' ) ); ?>" class="sd-nav-link" data-nav="settings"><i class="far fa-gear"></i> Settings</a></li>
-                                <li><a href="<?php echo esc_url( gmm_get_page_link( 'student_login' ) ); ?>" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
+                                <li><a href="<?php echo esc_url( $logout_url ); ?>" class="sd-nav-link sd-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
                             </ul>
                         </nav>
                     </aside>
@@ -74,9 +129,13 @@ if ( ! isset( $user_first_name ) ) {
                             <div class="sd-card-head">
                                 <div>
                                     <h3>Welcome Back, <?php echo esc_html( $user_first_name ); ?>!</h3>
-                                    <p>Continue your gospel music journey and manage your upcoming lessons.</p>
+                                    <p>Continue your gospel music journey and manage your upcoming lessons.<?php
+									if ( ! empty( $profile_summary['learning_goals'] ) ) {
+										echo ' ' . esc_html( wp_trim_words( (string) $profile_summary['learning_goals'], 18 ) );
+									}
+									?></p>
                                 </div>
-                                <a href="teachers.html" class="theme-btn"><i class="far fa-users"></i> Browse Teachers</a>
+                                <a href="<?php echo esc_url( $link_teachers ); ?>" class="theme-btn"><i class="far fa-users"></i> Browse Teachers</a>
                             </div>
                         </section>
 
@@ -87,22 +146,28 @@ if ( ! isset( $user_first_name ) ) {
                                     <h3>Complete Your Profile</h3>
                                     <p>Finish a few details to get better teacher recommendations.</p>
                                 </div>
-                                <span class="sd-progress-label">75% Complete</span>
+                                <span class="sd-progress-label"><?php echo esc_html( (string) $pct ); ?>% Complete</span>
                             </div>
                             <div class="progress-box sd-progress-box">
                                 <div class="progress">
-                                    <div class="progress-bar sd-progress-bar-75" role="progressbar" aria-valuenow="75"
-                                        aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="progress-bar sd-progress-bar-75" role="progressbar" aria-valuenow="<?php echo esc_attr( (string) $pct ); ?>"
+                                        aria-valuemin="0" aria-valuemax="100" style="width:<?php echo esc_attr( (string) $pct ); ?>%"></div>
                                 </div>
                             </div>
                             <ul class="sd-checklist">
+								<?php if ( ! empty( $completion['items'] ) ) : ?>
+									<?php foreach ( $completion['items'] as $item ) : ?>
+                                <li class="<?php echo ! empty( $item['done'] ) ? 'is-done' : ''; ?>"><i class="far fa-circle-check"></i> <?php echo esc_html( isset( $item['label'] ) ? $item['label'] : '' ); ?></li>
+									<?php endforeach; ?>
+								<?php else : ?>
                                 <li class="is-done"><i class="far fa-circle-check"></i> Personal Information</li>
                                 <li class="is-done"><i class="far fa-circle-check"></i> Profile Photo</li>
                                 <li class="is-done"><i class="far fa-circle-check"></i> Learning Goals</li>
                                 <li class="is-done"><i class="far fa-circle-check"></i> Preferred Instruments</li>
+								<?php endif; ?>
                             </ul>
                             <div class="sd-card-actions">
-                                <a href="<?php echo esc_url( gmm_get_page_link( 'student_profile' ) ); ?>" class="theme-btn"><i class="far fa-user-pen"></i> Update Profile</a>
+                                <a href="<?php echo esc_url( $link_profile ); ?>" class="theme-btn"><i class="far fa-user-pen"></i> Update Profile</a>
                             </div>
                         </section>
 
@@ -111,28 +176,28 @@ if ( ! isset( $user_first_name ) ) {
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-chalkboard"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="5">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) (int) $stats['enrolled_classes'] ); ?>">0</span>
                                     <span class="sd-stat-title">Enrolled Classes</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-calendar-days"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="3">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) (int) $stats['upcoming_lessons'] ); ?>">0</span>
                                     <span class="sd-stat-title">Upcoming Lessons</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-circle-check"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="24">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) (int) $stats['completed_lessons'] ); ?>">0</span>
                                     <span class="sd-stat-title">Completed Lessons</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-heart"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="8">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) (int) $stats['favourite_teachers'] ); ?>">0</span>
                                     <span class="sd-stat-title">Favourite Teachers</span>
                                 </div>
                             </div>
@@ -179,109 +244,71 @@ if ( ! isset( $user_first_name ) ) {
                         <section class="sd-card">
                             <div class="sd-card-head">
                                 <h3>Upcoming Lessons</h3>
-                                <a href="<?php echo esc_url( gmm_get_page_link( 'student_lessons' ) ); ?>" class="sd-link">View All</a>
+                                <a href="<?php echo esc_url( $link_lessons ); ?>" class="sd-link">View All</a>
                             </div>
                             <div class="sd-lesson-list">
+<?php if ( ! empty( $upcoming_lessons ) ) : ?>
+<?php foreach ( $upcoming_lessons as $lesson ) : ?>
                                 <article class="sd-lesson-card">
                                     <div class="sd-lesson-teacher">
-                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="John Smith">
+                                        <img src="<?php echo esc_url( isset( $lesson['teacher_image'] ) ? $lesson['teacher_image'] : gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="<?php echo esc_attr( isset( $lesson['teacher_name'] ) ? $lesson['teacher_name'] : '' ); ?>">
                                         <div>
-                                            <h4>John Smith</h4>
-                                            <p>Beginner Gospel Piano</p>
+                                            <h4><?php echo esc_html( isset( $lesson['teacher_name'] ) ? $lesson['teacher_name'] : '' ); ?></h4>
+                                            <p><?php echo esc_html( isset( $lesson['class_name'] ) ? $lesson['class_name'] : '' ); ?></p>
                                         </div>
                                     </div>
                                     <div class="sd-lesson-meta">
-                                        <span><i class="far fa-calendar"></i> Monday</span>
-                                        <span><i class="far fa-clock"></i> 10:00 AM</span>
-                                        <span class="sd-badge is-confirmed">Confirmed</span>
+                                        <span><i class="far fa-calendar"></i> <?php echo esc_html( isset( $lesson['date_label'] ) ? $lesson['date_label'] : '' ); ?></span>
+                                        <span><i class="far fa-clock"></i> <?php echo esc_html( isset( $lesson['time_label'] ) ? $lesson['time_label'] : '' ); ?></span>
+                                        <span class="sd-badge <?php echo esc_attr( isset( $lesson['badge_class'] ) ? $lesson['badge_class'] : 'is-pending' ); ?>"><?php echo esc_html( isset( $lesson['status_label'] ) ? $lesson['status_label'] : '' ); ?></span>
                                     </div>
                                     <div class="sd-lesson-actions">
                                         <div class="dropdown">
                                             <button class="theme-btn theme-btn-outline sd-action-btn dropdown-toggle"
                                                 type="button" data-bs-toggle="dropdown" aria-expanded="false">View Lesson</button>
                                             <ul class="dropdown-menu dropdown-menu-end">
-                                                <li><a class="dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'student_lessons' ) ); ?>">Lesson Details</a></li>
-                                                <li><a class="dropdown-item" href="<?php echo esc_url( gmm_get_page_link( 'student_bookings' ) ); ?>">Reschedule</a></li>
+                                                <li><a class="dropdown-item" href="<?php echo esc_url( $link_lessons ); ?>">Lesson Details</a></li>
+                                                <li><a class="dropdown-item" href="<?php echo esc_url( $link_bookings ); ?>">Reschedule</a></li>
                                             </ul>
                                         </div>
                                     </div>
                                 </article>
-                                <article class="sd-lesson-card">
-                                    <div class="sd-lesson-teacher">
-                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/03.jpg' ) ); ?>" alt="Emily Carter">
-                                        <div>
-                                            <h4>Emily Carter</h4>
-                                            <p>Worship Vocal Training</p>
-                                        </div>
-                                    </div>
-                                    <div class="sd-lesson-meta">
-                                        <span><i class="far fa-calendar"></i> Wednesday</span>
-                                        <span><i class="far fa-clock"></i> 02:00 PM</span>
-                                        <span class="sd-badge is-scheduled">Scheduled</span>
-                                    </div>
-                                    <div class="sd-lesson-actions">
-                                        <a href="<?php echo esc_url( gmm_get_page_link( 'student_lessons' ) ); ?>" class="theme-btn theme-btn-outline sd-action-btn">View Lesson</a>
-                                    </div>
-                                </article>
-                                <article class="sd-lesson-card">
-                                    <div class="sd-lesson-teacher">
-                                        <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/04.jpg' ) ); ?>" alt="Michael Brown">
-                                        <div>
-                                            <h4>Michael Brown</h4>
-                                            <p>Hammond Organ Essentials</p>
-                                        </div>
-                                    </div>
-                                    <div class="sd-lesson-meta">
-                                        <span><i class="far fa-calendar"></i> Friday</span>
-                                        <span><i class="far fa-clock"></i> 11:00 AM</span>
-                                        <span class="sd-badge is-pending">Pending</span>
-                                    </div>
-                                    <div class="sd-lesson-actions">
-                                        <a href="<?php echo esc_url( gmm_get_page_link( 'student_lessons' ) ); ?>" class="theme-btn theme-btn-outline sd-action-btn">View Lesson</a>
-                                    </div>
-                                </article>
+<?php endforeach; ?>
+<?php else : ?>
+                                <p class="td-empty-state mb-0"><?php esc_html_e( 'No upcoming lessons yet.', 'gospel-music-mastery' ); ?></p>
+<?php endif; ?>
                             </div>
                         </section>
 
                         <div class="row g-4">
                             <div class="col-lg-7">
-                                <!-- recommended teachers -->
+                                <!-- recommended teachers / favourites -->
                                 <section class="sd-card">
                                     <div class="sd-card-head">
                                         <h3>Recommended Teachers</h3>
-                                        <a href="teachers.html" class="sd-link">Browse All</a>
+                                        <a href="<?php echo esc_url( $link_favourites ); ?>" class="sd-link">Browse All</a>
                                     </div>
                                     <div class="sd-teacher-grid">
+<?php if ( ! empty( $favourite_teachers ) ) : ?>
+<?php foreach ( $favourite_teachers as $teacher ) : ?>
                                         <article class="sd-teacher-card">
-                                            <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="John Smith">
+                                            <img src="<?php echo esc_url( isset( $teacher['image_url'] ) ? $teacher['image_url'] : gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="<?php echo esc_attr( isset( $teacher['name'] ) ? $teacher['name'] : '' ); ?>">
                                             <div class="sd-teacher-body">
-                                                <h4>John Smith</h4>
-                                                <p>Gospel Piano Instructor</p>
-                                                <span class="sd-rating">★★★★★</span>
-                                                <strong class="sd-price">$40/Lesson</strong>
-                                                <a href="student-teacher-profile.html" class="theme-btn theme-btn-outline sd-action-btn">View Profile</a>
+                                                <h4><?php echo esc_html( isset( $teacher['name'] ) ? $teacher['name'] : '' ); ?></h4>
+                                                <p><?php echo esc_html( isset( $teacher['specialization'] ) ? $teacher['specialization'] : '' ); ?></p>
+                                                <span class="sd-rating"><?php echo esc_html( isset( $teacher['rating_stars'] ) ? $teacher['rating_stars'] : '★★★★☆' ); ?></span>
+												<?php if ( ! empty( $teacher['price_label'] ) ) : ?>
+                                                <strong class="sd-price"><?php echo esc_html( $teacher['price_label'] ); ?></strong>
+												<?php else : ?>
+                                                <strong class="sd-price"><?php esc_html_e( 'Favourite', 'gospel-music-mastery' ); ?></strong>
+												<?php endif; ?>
+                                                <a href="<?php echo esc_url( ! empty( $teacher['profile_url'] ) ? $teacher['profile_url'] : $link_favourites ); ?>" class="theme-btn theme-btn-outline sd-action-btn">View Profile</a>
                                             </div>
                                         </article>
-                                        <article class="sd-teacher-card">
-                                            <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/03.jpg' ) ); ?>" alt="Emily Carter">
-                                            <div class="sd-teacher-body">
-                                                <h4>Emily Carter</h4>
-                                                <p>Vocal Worship Coach</p>
-                                                <span class="sd-rating">★★★★★</span>
-                                                <strong class="sd-price">$45/Lesson</strong>
-                                                <a href="student-teacher-profile.html" class="theme-btn theme-btn-outline sd-action-btn">View Profile</a>
-                                            </div>
-                                        </article>
-                                        <article class="sd-teacher-card">
-                                            <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/05.jpg' ) ); ?>" alt="David Lee">
-                                            <div class="sd-teacher-body">
-                                                <h4>David Lee</h4>
-                                                <p>Hammond Organ Teacher</p>
-                                                <span class="sd-rating">★★★★☆</span>
-                                                <strong class="sd-price">$50/Lesson</strong>
-                                                <a href="student-teacher-profile.html" class="theme-btn theme-btn-outline sd-action-btn">View Profile</a>
-                                            </div>
-                                        </article>
+<?php endforeach; ?>
+<?php else : ?>
+                                        <p class="td-empty-state mb-0"><?php esc_html_e( 'No favourite teachers yet. Browse and save instructors you like.', 'gospel-music-mastery' ); ?></p>
+<?php endif; ?>
                                     </div>
                                 </section>
                             </div>
@@ -292,34 +319,35 @@ if ( ! isset( $user_first_name ) ) {
                                         <h3>Recent Activity</h3>
                                     </div>
                                     <ul class="sd-activity-list">
+<?php if ( ! empty( $activity ) ) : ?>
+<?php foreach ( $activity as $item ) : ?>
                                         <li>
-                                            <span class="sd-activity-icon"><i class="far fa-calendar-plus"></i></span>
+                                            <span class="sd-activity-icon"><i class="<?php echo esc_attr( isset( $item['icon'] ) ? $item['icon'] : 'far fa-circle' ); ?>"></i></span>
                                             <div>
-                                                <strong>Booked Gospel Piano lesson</strong>
-                                                <span>Today · 9:15 AM</span>
+                                                <strong><?php echo esc_html( isset( $item['title'] ) ? $item['title'] : '' ); ?></strong>
+                                                <span><?php echo esc_html( isset( $item['subtitle'] ) ? $item['subtitle'] : '' ); ?></span>
                                             </div>
                                         </li>
-                                        <li>
-                                            <span class="sd-activity-icon"><i class="far fa-credit-card"></i></span>
-                                            <div>
-                                                <strong>Payment completed</strong>
-                                                <span>Yesterday · $40</span>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <span class="sd-activity-icon"><i class="far fa-heart"></i></span>
-                                            <div>
-                                                <strong>New teacher added to favourites</strong>
-                                                <span>2 days ago</span>
-                                            </div>
-                                        </li>
+<?php endforeach; ?>
+<?php elseif ( ! empty( $recent_lessons ) ) : ?>
+<?php foreach ( $recent_lessons as $lesson ) : ?>
                                         <li>
                                             <span class="sd-activity-icon"><i class="far fa-circle-check"></i></span>
                                             <div>
-                                                <strong>Completed Worship Vocal lesson</strong>
-                                                <span>3 days ago</span>
+                                                <strong><?php echo esc_html( sprintf( __( 'Completed %s', 'gospel-music-mastery' ), isset( $lesson['class_name'] ) ? $lesson['class_name'] : __( 'lesson', 'gospel-music-mastery' ) ) ); ?></strong>
+                                                <span><?php echo esc_html( ( isset( $lesson['teacher_name'] ) ? $lesson['teacher_name'] : '' ) . ( ! empty( $lesson['date_label'] ) ? ' · ' . $lesson['date_label'] : '' ) ); ?></span>
                                             </div>
                                         </li>
+<?php endforeach; ?>
+<?php else : ?>
+                                        <li>
+                                            <span class="sd-activity-icon"><i class="far fa-info-circle"></i></span>
+                                            <div>
+                                                <strong><?php esc_html_e( 'No recent activity yet', 'gospel-music-mastery' ); ?></strong>
+                                                <span><?php echo esc_html( sprintf( __( 'Total paid: %s', 'gospel-music-mastery' ), $total_paid_label ) ); ?></span>
+                                            </div>
+                                        </li>
+<?php endif; ?>
                                     </ul>
                                 </section>
                             </div>
@@ -331,19 +359,19 @@ if ( ! isset( $user_first_name ) ) {
                                 <h3>Quick Actions</h3>
                             </div>
                             <div class="sd-quick-grid">
-                                <a href="teachers.html" class="sd-quick-card">
+                                <a href="<?php echo esc_url( $link_teachers ); ?>" class="sd-quick-card">
                                     <i class="far fa-users"></i>
                                     <span>Browse Teachers</span>
                                 </a>
-                                <a href="<?php echo esc_url( gmm_get_page_link( 'student_lessons' ) ); ?>" class="sd-quick-card">
+                                <a href="<?php echo esc_url( $link_lessons ); ?>" class="sd-quick-card">
                                     <i class="far fa-book-open"></i>
                                     <span>My Lessons</span>
                                 </a>
-                                <a href="<?php echo esc_url( gmm_get_page_link( 'student_bookings' ) ); ?>" class="sd-quick-card">
+                                <a href="<?php echo esc_url( $link_book ); ?>" class="sd-quick-card">
                                     <i class="far fa-calendar-check"></i>
                                     <span>My Bookings</span>
                                 </a>
-                                <a href="<?php echo esc_url( gmm_get_page_link( 'student_profile' ) ); ?>" class="sd-quick-card">
+                                <a href="<?php echo esc_url( $link_profile ); ?>" class="sd-quick-card">
                                     <i class="far fa-user-pen"></i>
                                     <span>Update Profile</span>
                                 </a>
@@ -358,4 +386,3 @@ if ( ! isset( $user_first_name ) ) {
 
     
 </div><!-- .gmm-wrapper -->
-

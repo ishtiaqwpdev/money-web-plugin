@@ -15,6 +15,27 @@ if ( ! isset( $user_name ) ) {
 if ( ! isset( $user_first_name ) ) {
 	$user_first_name = $user_name;
 }
+
+if ( ! isset( $earnings ) || ! is_array( $earnings ) ) {
+	$earnings = array();
+}
+if ( ! isset( $withdrawal_history ) || ! is_array( $withdrawal_history ) ) {
+	$withdrawal_history = array();
+}
+if ( ! isset( $transactions ) || ! is_array( $transactions ) ) {
+	$transactions = array();
+}
+if ( ! isset( $min_withdrawal ) ) {
+	$min_withdrawal = isset( $earnings['min_withdrawal'] ) ? (float) $earnings['min_withdrawal'] : 50.0;
+}
+
+$total_earnings      = isset( $earnings['total_earnings'] ) ? (float) $earnings['total_earnings'] : 0.0;
+$available_balance   = isset( $earnings['available_balance'] ) ? (float) $earnings['available_balance'] : 0.0;
+$withdrawn_amount    = isset( $earnings['withdrawn_amount'] ) ? (float) $earnings['withdrawn_amount'] : 0.0;
+$pending_withdrawals = isset( $earnings['pending_withdrawals'] ) ? (float) $earnings['pending_withdrawals'] : 0.0;
+$has_withdrawals     = ! empty( $withdrawal_history );
+$link_create_class   = function_exists( 'gmm_get_page_link' ) ? gmm_get_page_link( 'teacher_classes' ) : '#';
+$link_payment        = function_exists( 'gmm_get_page_link' ) ? gmm_get_page_link( 'teacher_settings' ) : '#';
 ?>
 <div class="gmm-wrapper gmm-dashboard">
 
@@ -39,7 +60,7 @@ if ( ! isset( $user_first_name ) ) {
                         </div>
                     </div>
                     <div class="td-profile-actions">
-                        <a href="teacher-onboarding-class.html" class="theme-btn"><i class="far fa-plus"></i> Create New Class</a>
+                        <a href="<?php echo esc_url( $link_create_class ); ?>" class="theme-btn"><i class="far fa-plus"></i> Create New Class</a>
                     </div>
                 </div>
 
@@ -75,7 +96,7 @@ if ( ! isset( $user_first_name ) ) {
                         </div>
                         <div class="gospel-alert gospel-alert-success" id="withdrawal-success" hidden>
                             <i class="far fa-circle-check"></i>
-                            <span>Withdrawal request submitted successfully (demo). No real payment was processed.</span>
+                            <span id="withdrawal-success-text">Withdrawal request submitted successfully.</span>
                         </div>
 
                         <!-- page header -->
@@ -94,28 +115,28 @@ if ( ! isset( $user_first_name ) ) {
                             <div class="td-stat-card">
                                 <div class="td-stat-icon"><i class="far fa-chart-line"></i></div>
                                 <div class="td-stat-body">
-                                    <span class="td-stat-value">$5,250</span>
+                                    <span class="td-stat-value" id="total-earnings-display">$<?php echo esc_html( number_format_i18n( $total_earnings, 2 ) ); ?></span>
                                     <span class="td-stat-title">Total Earnings</span>
                                 </div>
                             </div>
                             <div class="td-stat-card">
                                 <div class="td-stat-icon"><i class="far fa-wallet"></i></div>
                                 <div class="td-stat-body">
-                                    <span class="td-stat-value" id="available-balance-display">$1,250</span>
+                                    <span class="td-stat-value" id="available-balance-display">$<?php echo esc_html( number_format_i18n( $available_balance, 2 ) ); ?></span>
                                     <span class="td-stat-title">Available Balance</span>
                                 </div>
                             </div>
                             <div class="td-stat-card">
                                 <div class="td-stat-icon"><i class="far fa-money-bill-transfer"></i></div>
                                 <div class="td-stat-body">
-                                    <span class="td-stat-value">$4,000</span>
+                                    <span class="td-stat-value" id="withdrawn-amount-display">$<?php echo esc_html( number_format_i18n( $withdrawn_amount, 2 ) ); ?></span>
                                     <span class="td-stat-title">Total Withdrawals</span>
                                 </div>
                             </div>
                             <div class="td-stat-card">
                                 <div class="td-stat-icon"><i class="far fa-clock"></i></div>
                                 <div class="td-stat-body">
-                                    <span class="td-stat-value">$500</span>
+                                    <span class="td-stat-value" id="pending-withdrawals-display">$<?php echo esc_html( number_format_i18n( $pending_withdrawals, 2 ) ); ?></span>
                                     <span class="td-stat-title">Pending Requests</span>
                                 </div>
                             </div>
@@ -139,7 +160,7 @@ if ( ! isset( $user_first_name ) ) {
                                         </div>
                                         <span class="td-badge is-confirmed">Active</span>
                                     </div>
-                                    <a href="teacher-onboarding-payment.html" class="theme-btn theme-btn-outline">
+                                    <a href="<?php echo esc_url( $link_payment ); ?>" class="theme-btn theme-btn-outline">
                                         <i class="far fa-gear"></i> Manage Payment Account
                                     </a>
                                     <p class="field-note payment-secure-note">
@@ -162,9 +183,10 @@ if ( ! isset( $user_first_name ) ) {
                                         <div class="price-input-wrap">
                                             <span class="price-prefix">$</span>
                                             <input type="number" class="form-control" id="withdrawal-amount" name="amount"
-                                                min="50" step="0.01" placeholder="0.00" inputmode="decimal">
+                                                min="<?php echo esc_attr( (string) $min_withdrawal ); ?>" step="0.01" placeholder="0.00" inputmode="decimal"
+                                                max="<?php echo esc_attr( (string) $available_balance ); ?>">
                                         </div>
-                                        <p class="field-note">Minimum withdrawal amount: $50</p>
+                                        <p class="field-note">Minimum withdrawal amount: $<?php echo esc_html( number_format_i18n( (float) $min_withdrawal, 2 ) ); ?></p>
                                     </div>
                                     <div class="form-group">
                                         <label for="withdrawal-method">Payment Method</label>
@@ -207,63 +229,29 @@ if ( ! isset( $user_first_name ) ) {
                                         </tr>
                                     </thead>
                                     <tbody id="withdrawal-tbody">
-                                        <tr data-status="completed">
-                                            <td data-label="Date">March 10, 2026</td>
-                                            <td data-label="Amount"><strong>$250</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="td-badge is-confirmed">Completed</span></td>
+<?php if ( $has_withdrawals ) : ?>
+<?php foreach ( $withdrawal_history as $wd ) : ?>
+                                        <tr data-status="<?php echo esc_attr( isset( $wd['ui_filter'] ) ? $wd['ui_filter'] : 'pending' ); ?>" data-id="<?php echo esc_attr( (string) ( isset( $wd['id'] ) ? $wd['id'] : 0 ) ); ?>">
+                                            <td data-label="Date"><?php echo esc_html( isset( $wd['date_label'] ) ? $wd['date_label'] : '' ); ?></td>
+                                            <td data-label="Amount"><strong><?php echo esc_html( isset( $wd['amount_label'] ) ? $wd['amount_label'] : '' ); ?></strong></td>
+                                            <td data-label="Payment Method"><?php echo esc_html( isset( $wd['payment_method'] ) ? $wd['payment_method'] : '' ); ?></td>
+                                            <td data-label="Status"><span class="td-badge <?php echo esc_attr( isset( $wd['badge_class'] ) ? $wd['badge_class'] : 'is-pending' ); ?>"><?php echo esc_html( isset( $wd['status_label'] ) ? $wd['status_label'] : '' ); ?></span></td>
                                             <td data-label="Action">
                                                 <button type="button" class="theme-btn theme-btn-outline td-action-btn withdrawal-view-btn"
-                                                    data-date="March 10, 2026"
-                                                    data-amount="$250"
-                                                    data-method="Stripe"
-                                                    data-status="Completed">View</button>
+                                                    data-date="<?php echo esc_attr( isset( $wd['date_label'] ) ? $wd['date_label'] : '' ); ?>"
+                                                    data-amount="<?php echo esc_attr( isset( $wd['amount_label'] ) ? $wd['amount_label'] : '' ); ?>"
+                                                    data-method="<?php echo esc_attr( isset( $wd['payment_method'] ) ? $wd['payment_method'] : '' ); ?>"
+                                                    data-status="<?php echo esc_attr( isset( $wd['status_label'] ) ? $wd['status_label'] : '' ); ?>"
+                                                    data-note="<?php echo esc_attr( isset( $wd['admin_response'] ) ? $wd['admin_response'] : '' ); ?>">View</button>
                                             </td>
                                         </tr>
-                                        <tr data-status="pending">
-                                            <td data-label="Date">March 20, 2026</td>
-                                            <td data-label="Amount"><strong>$500</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="td-badge is-pending">Pending</span></td>
-                                            <td data-label="Action">
-                                                <button type="button" class="theme-btn theme-btn-outline td-action-btn withdrawal-view-btn"
-                                                    data-date="March 20, 2026"
-                                                    data-amount="$500"
-                                                    data-method="Stripe"
-                                                    data-status="Pending">View</button>
-                                            </td>
-                                        </tr>
-                                        <tr data-status="completed">
-                                            <td data-label="Date">February 28, 2026</td>
-                                            <td data-label="Amount"><strong>$750</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="td-badge is-confirmed">Completed</span></td>
-                                            <td data-label="Action">
-                                                <button type="button" class="theme-btn theme-btn-outline td-action-btn withdrawal-view-btn"
-                                                    data-date="February 28, 2026"
-                                                    data-amount="$750"
-                                                    data-method="Stripe"
-                                                    data-status="Completed">View</button>
-                                            </td>
-                                        </tr>
-                                        <tr data-status="failed">
-                                            <td data-label="Date">February 12, 2026</td>
-                                            <td data-label="Amount"><strong>$100</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="td-badge is-cancelled">Failed</span></td>
-                                            <td data-label="Action">
-                                                <button type="button" class="theme-btn theme-btn-outline td-action-btn withdrawal-view-btn"
-                                                    data-date="February 12, 2026"
-                                                    data-amount="$100"
-                                                    data-method="Stripe"
-                                                    data-status="Failed">View</button>
-                                            </td>
-                                        </tr>
+<?php endforeach; ?>
+<?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
 
-                            <p class="td-empty-state" id="withdrawal-empty" hidden>
+                            <p class="td-empty-state" id="withdrawal-empty"<?php echo $has_withdrawals ? ' hidden' : ''; ?>>
                                 No withdrawal history available yet.
                             </p>
                         </section>
@@ -290,8 +278,9 @@ if ( ! isset( $user_first_name ) ) {
                         <li><span>Amount</span><strong id="modal-wd-amount">—</strong></li>
                         <li><span>Payment Method</span><strong id="modal-wd-method">—</strong></li>
                         <li><span>Status</span><strong id="modal-wd-status">—</strong></li>
+                        <li><span>Admin Response</span><strong id="modal-wd-note">—</strong></li>
                     </ul>
-                    <p class="field-note mt-3 mb-0">Frontend demo only. Stripe payout details will appear here after backend integration.</p>
+                    <p class="field-note mt-3 mb-0">Admin response and payout notes appear here when available.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="theme-btn theme-btn-outline" data-bs-dismiss="modal">Close</button>

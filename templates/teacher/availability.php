@@ -9,12 +9,40 @@
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! isset( $user_name ) ) {
-	$user_name = 'Guest';
+if ( ! empty( $gmm_teacher_pending ) || ! empty( $gmm_teacher_denied ) ) {
+	$msg = ! empty( $gmm_teacher_pending )
+		? __( 'Your account is waiting for approval.', 'gospel-music-mastery' )
+		: __( 'You do not have permission to manage availability.', 'gospel-music-mastery' );
+	echo '<div class="gmm-wrapper gmm-dashboard"><div class="teacher-dashboard-area py-120"><div class="container"><div class="td-card"><div class="td-card-head"><h3>' . esc_html( $msg ) . '</h3></div></div></div></div></div>';
+	return;
+}
+
+$profile_summary = ( isset( $profile_summary ) && is_array( $profile_summary ) ) ? $profile_summary : array();
+$profile_stats   = ( isset( $profile_stats ) && is_array( $profile_stats ) ) ? $profile_stats : array(
+	'rating'   => 0,
+	'students' => 0,
+	'classes'  => 0,
+);
+$logout_url = isset( $logout_url ) ? $logout_url : ( function_exists( 'gmm_logout_url' ) ? gmm_logout_url( home_url( '/' ) ) : wp_logout_url( home_url( '/' ) ) );
+$links      = ( isset( $links ) && is_array( $links ) ) ? $links : array();
+$repeat_weekly = ! empty( $repeat_weekly );
+
+if ( ! isset( $user_name ) || '' === $user_name ) {
+	$user_name = ! empty( $profile_summary['name'] ) ? $profile_summary['name'] : 'Guest';
 }
 if ( ! isset( $user_first_name ) ) {
-	$user_first_name = $user_name;
+	$user_first_name = ! empty( $profile_summary['first_name'] ) ? $profile_summary['first_name'] : $user_name;
 }
+
+$avatar_url = ! empty( $profile_summary['image_url'] )
+	? $profile_summary['image_url']
+	: gmm_design_asset_url( 'assets/img/team/01.jpg' );
+$role_label = ! empty( $profile_summary['specialization'] )
+	? $profile_summary['specialization']
+	: 'Gospel Music Instructor';
+$rating_val  = isset( $profile_stats['rating'] ) ? (float) $profile_stats['rating'] : 0;
+$rating_disp = $rating_val > 0 ? number_format_i18n( $rating_val, 1 ) : '—';
+$link_classes = ! empty( $links['classes'] ) ? $links['classes'] : gmm_get_page_link( 'teacher_classes' );
 ?>
 <div class="gmm-wrapper gmm-dashboard">
 
@@ -26,20 +54,20 @@ if ( ! isset( $user_first_name ) ) {
                 <div class="td-profile-header">
                     <div class="td-profile-main">
                         <div class="td-profile-avatar">
-                            <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
+                            <img src="<?php echo esc_url( $avatar_url ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
                         </div>
                         <div class="td-profile-meta">
                             <h2><?php echo esc_html( $user_name ); ?></h2>
-                            <span class="td-role">Gospel Music Instructor</span>
+                            <span class="td-role"><?php echo esc_html( $role_label ); ?></span>
                             <div class="td-profile-stats">
-                                <span class="td-stat-item"><i class="fas fa-star"></i> 4.9</span>
-                                <span class="td-stat-item"><i class="far fa-users"></i> 25 Students</span>
-                                <span class="td-stat-item"><i class="far fa-books"></i> 12 Classes</span>
+                                <span class="td-stat-item"><i class="fas fa-star"></i> <?php echo esc_html( $rating_disp ); ?></span>
+                                <span class="td-stat-item"><i class="far fa-users"></i> <?php echo esc_html( (int) $profile_stats['students'] ); ?> Students</span>
+                                <span class="td-stat-item"><i class="far fa-books"></i> <?php echo esc_html( (int) $profile_stats['classes'] ); ?> Classes</span>
                             </div>
                         </div>
                     </div>
                     <div class="td-profile-actions">
-                        <a href="teacher-onboarding-class.html" class="theme-btn"><i class="far fa-plus"></i> Create New Class</a>
+                        <a href="<?php echo esc_url( $link_classes ); ?>" class="theme-btn"><i class="far fa-plus"></i> Create New Class</a>
                     </div>
                 </div>
 
@@ -60,7 +88,7 @@ if ( ! isset( $user_first_name ) ) {
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'teacher_dashboard' ) ); ?>" class="td-nav-link" data-nav="messages"><i class="far fa-comments"></i> Messages</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'teacher_withdrawals' ) ); ?>" class="td-nav-link" data-nav="withdrawals"><i class="far fa-wallet"></i> Withdrawals</a></li>
                                 <li><a href="<?php echo esc_url( gmm_get_page_link( 'teacher_settings' ) ); ?>" class="td-nav-link" data-nav="settings"><i class="far fa-gear"></i> Settings</a></li>
-                                <li><a href="<?php echo esc_url( gmm_get_page_link( 'teacher_login' ) ); ?>" class="td-nav-link td-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
+                                <li><a href="<?php echo esc_url( $logout_url ); ?>" class="td-nav-link td-nav-logout" data-nav="logout"><i class="far fa-right-from-bracket"></i> Logout</a></li>
                             </ul>
                         </nav>
                     </aside>
@@ -75,7 +103,7 @@ if ( ! isset( $user_first_name ) ) {
                         </div>
                         <div class="gospel-alert gospel-alert-success" id="availability-success" hidden>
                             <i class="far fa-circle-check"></i>
-                            <span>Availability saved successfully (demo).</span>
+                            <span>Availability saved successfully.</span>
                         </div>
 
                         <!-- page header -->
@@ -168,7 +196,7 @@ if ( ! isset( $user_first_name ) ) {
                                             <p>Automatically apply these available hours every week.</p>
                                         </div>
                                         <label class="gospel-switch" for="repeat-weekly">
-                                            <input type="checkbox" id="repeat-weekly" name="repeat_weekly">
+                                            <input type="checkbox" id="repeat-weekly" name="repeat_weekly"<?php echo $repeat_weekly ? ' checked' : ''; ?>>
                                             <span class="gospel-switch-slider" aria-hidden="true"></span>
                                             <span class="visually-hidden">Repeat this schedule weekly</span>
                                         </label>
@@ -190,4 +218,3 @@ if ( ! isset( $user_first_name ) ) {
 
     
 </div><!-- .gmm-wrapper -->
-

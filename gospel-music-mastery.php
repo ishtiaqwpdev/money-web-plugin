@@ -26,7 +26,7 @@ define( 'GMM_VERSION', '1.0.2' );
 /**
  * Database schema version.
  */
-define( 'GMM_DB_VERSION', '1.4.0' );
+define( 'GMM_DB_VERSION', '1.5.0' );
 
 /**
  * Absolute filesystem path to the plugin directory (with trailing slash).
@@ -75,10 +75,17 @@ require_once GMM_PATH . 'admin/gmm-admin-bookings-functions.php';
 require_once GMM_PATH . 'admin/gmm-admin-payments-functions.php';
 require_once GMM_PATH . 'teacher/class-gmm-teacher.php';
 require_once GMM_PATH . 'teacher/class-gmm-teacher-auth.php';
+require_once GMM_PATH . 'teacher/class-gmm-teacher-dashboard.php';
+require_once GMM_PATH . 'teacher/class-gmm-teacher-profile.php';
 require_once GMM_PATH . 'teacher/class-gmm-teacher-classes.php';
+require_once GMM_PATH . 'teacher/class-gmm-teacher-availability.php';
+require_once GMM_PATH . 'teacher/class-gmm-teacher-bookings.php';
 require_once GMM_PATH . 'teacher/class-gmm-availability.php';
 require_once GMM_PATH . 'teacher/gmm-teacher-functions.php';
 require_once GMM_PATH . 'student/class-gmm-student.php';
+require_once GMM_PATH . 'student/class-gmm-student-auth.php';
+require_once GMM_PATH . 'student/class-gmm-student-dashboard.php';
+require_once GMM_PATH . 'student/class-gmm-student-profile.php';
 require_once GMM_PATH . 'student/class-gmm-student-lessons.php';
 require_once GMM_PATH . 'student/class-gmm-student-bookings.php';
 require_once GMM_PATH . 'student/class-gmm-favourites.php';
@@ -94,6 +101,9 @@ require_once GMM_PATH . 'includes/class-gmm-auth.php';
 require_once GMM_PATH . 'includes/gmm-auth-functions.php';
 require_once GMM_PATH . 'includes/class-gmm-search.php';
 require_once GMM_PATH . 'includes/gmm-search-functions.php';
+require_once GMM_PATH . 'public/class-gmm-teacher-search.php';
+require_once GMM_PATH . 'public/class-gmm-teacher-profile-public.php';
+require_once GMM_PATH . 'public/class-gmm-booking-flow.php';
 require_once GMM_PATH . 'includes/class-gmm-ajax.php';
 require_once GMM_PATH . 'includes/gmm-ajax-functions.php';
 require_once GMM_PATH . 'includes/class-gmm-notifications.php';

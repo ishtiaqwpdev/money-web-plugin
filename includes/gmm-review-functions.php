@@ -98,14 +98,28 @@ function gmm_get_class_reviews( $class_id, $args = array() ) {
 /**
  * Calculate and update average teacher rating.
  *
+ * Returns average + total approved reviews.
+ *
  * @param int $teacher_id Teacher row ID.
- * @return float
+ * @return array{average:float,total:int}|float
  */
 function gmm_calculate_teacher_rating( $teacher_id ) {
 	if ( ! class_exists( 'GMM_Reviews' ) ) {
-		return 0.0;
+		return array(
+			'average' => 0.0,
+			'total'   => 0,
+		);
 	}
-	return GMM_Reviews::calculate_teacher_rating( $teacher_id );
+
+	$average = GMM_Reviews::calculate_teacher_rating( $teacher_id );
+	$total   = method_exists( 'GMM_Reviews', 'count_teacher_reviews' )
+		? GMM_Reviews::count_teacher_reviews( $teacher_id )
+		: 0;
+
+	return array(
+		'average' => (float) $average,
+		'total'   => (int) $total,
+	);
 }
 
 /**

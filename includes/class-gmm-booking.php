@@ -189,18 +189,19 @@ class GMM_Booking {
 		global $wpdb;
 		$avail_t = GMM_Database::table( 'availability' );
 
-		// Must fall inside an open availability window.
+		// Must fall inside an open/available window (supports legacy "open" + "available").
 		$slot = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT id FROM {$avail_t}
 				WHERE teacher_id = %d
 				AND available_date = %s
-				AND status = %s
+				AND status IN (%s,%s)
 				AND start_time <= %s
 				AND end_time >= %s
 				LIMIT 1",
 				$teacher_id,
 				$date,
+				'available',
 				'open',
 				$time,
 				$end_time
@@ -435,9 +436,10 @@ class GMM_Booking {
 			return new WP_Error( 'gmm_cap', __( 'Missing booking capability.', 'gospel-music-mastery' ) );
 		}
 
-		$allowed_from = array( self::STATUS_PENDING, self::STATUS_CONFIRMED );
+		// Students may only cancel their own pending bookings.
+		$allowed_from = array( self::STATUS_PENDING );
 		if ( ! in_array( $row['booking_status'], $allowed_from, true ) ) {
-			return new WP_Error( 'gmm_invalid_transition', __( 'This booking cannot be cancelled.', 'gospel-music-mastery' ) );
+			return new WP_Error( 'gmm_invalid_transition', __( 'Only pending bookings can be cancelled.', 'gospel-music-mastery' ) );
 		}
 
 		return self::transition_status( $booking_id, self::STATUS_CANCELLED, 'gmm_booking_cancelled' );
@@ -493,8 +495,8 @@ class GMM_Booking {
 	 * @param string $nonce      Optional nonce.
 	 * @return true|WP_Error
 	 */
-	public static function teacher_cancel_booking( $booking_id, $user_id = 0, $nonce = '' ) {
-		return self::teacher_set_status(
+	public static function teacher_cancel_booking( $booking_id, $user_id = 0, $nonce = '', $reason = '' ) {
+		$result = self::teacher_set_status(
 			$booking_id,
 			self::STATUS_CANCELLED,
 			$user_id,
@@ -502,6 +504,39 @@ class GMM_Booking {
 			array( self::STATUS_PENDING, self::STATUS_CONFIRMED ),
 			'gmm_booking_cancelled'
 		);
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$reason = sanitize_textarea_field( (string) $reason );
+		if ( '' !== $reason ) {
+			$row = self::get_raw_booking( $booking_id );
+			$notes = '';
+			if ( is_array( $row ) && ! empty( $row['notes'] ) ) {
+				$notes = (string) $row['notes'] . "\n";
+			}
+			$notes .= sprintf(
+				/* translators: %s: cancellation reason */
+				__( 'Cancellation reason: %s', 'gospel-music-mastery' ),
+				$reason
+			);
+
+			global $wpdb;
+			$table = GMM_Database::table( 'bookings' );
+			$wpdb->update(
+				$table,
+				array(
+					'notes'      => $notes,
+					'updated_at' => current_time( 'mysql' ),
+				),
+				array( 'id' => absint( $booking_id ) ),
+				array( '%s', '%s' ),
+				array( '%d' )
+			);
+		}
+
+		return true;
 	}
 
 	/**
@@ -597,9 +632,10 @@ class GMM_Booking {
 			$duration = 60;
 		}
 
-		$amount = isset( $data['amount'] ) ? round( max( 0, (float) $data['amount'] ), 2 ) : 0.0;
-		if ( $amount <= 0 && isset( $class['price'] ) ) {
-			$amount = round( max( 0, (float) $class['price'] ), 2 );
+		// Always use class price — never trust client-submitted amounts.
+		$amount = isset( $class['price'] ) ? round( max( 0, (float) $class['price'] ), 2 ) : 0.0;
+		if ( $amount <= 0 ) {
+			return new WP_Error( 'gmm_amount', __( 'Invalid class price.', 'gospel-music-mastery' ) );
 		}
 
 		$payment_status = isset( $data['payment_status'] ) ? sanitize_key( (string) $data['payment_status'] ) : 'pending';

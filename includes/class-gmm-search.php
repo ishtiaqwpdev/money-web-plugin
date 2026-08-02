@@ -61,7 +61,10 @@ class GMM_Search {
 	 * @return void
 	 */
 	public function register_shortcodes() {
-		add_shortcode( 'gmm_teacher_search', array( $this, 'shortcode_teacher_search' ) );
+		// Frontend teacher discovery is owned by GMM_Teacher_Search / GMM_Shortcodes.
+		if ( ! class_exists( 'GMM_Teacher_Search' ) ) {
+			add_shortcode( 'gmm_teacher_search', array( $this, 'shortcode_teacher_search' ) );
+		}
 		add_shortcode( 'gmm_class_search', array( $this, 'shortcode_class_search' ) );
 		add_shortcode( 'gmm_program_search', array( $this, 'shortcode_program_search' ) );
 	}
@@ -92,7 +95,7 @@ class GMM_Search {
 				'sort'     => $atts['sort'],
 				'per_page' => $atts['per_page'],
 				'page'     => $atts['page'],
-				'status'   => 'active',
+				'statuses' => array( 'approved', 'active' ),
 				'public'   => true,
 			)
 		);
@@ -207,6 +210,11 @@ class GMM_Search {
 	public static function search_teachers( $args = array() ) {
 		$args = self::parse_common_args( $args );
 
+		// Public discovery: approved teachers only (DB may store approved as active).
+		if ( ! empty( $args['public'] ) && empty( $args['status'] ) && empty( $args['statuses'] ) ) {
+			$args['statuses'] = array( 'approved', 'active' );
+		}
+
 		$cache_key = self::cache_key( 'teachers', $args );
 		$cached    = self::get_cache( $cache_key );
 		if ( is_array( $cached ) ) {
@@ -216,13 +224,38 @@ class GMM_Search {
 		global $wpdb;
 		$teachers = GMM_Database::table( 'teachers' );
 		$bookings = GMM_Database::table( 'bookings' );
+		$classes  = GMM_Database::table( 'classes' );
 
 		$where  = array( '1=1' );
 		$params = array();
 
-		if ( $args['status'] ) {
-			$where[]  = 't.status = %s';
-			$params[] = $args['status'];
+		if ( ! empty( $args['statuses'] ) && is_array( $args['statuses'] ) ) {
+			$statuses = array_values( array_filter( array_map( 'sanitize_key', $args['statuses'] ) ) );
+			// Map UI "approved" → approved + active.
+			if ( in_array( 'approved', $statuses, true ) ) {
+				$statuses = array_unique( array_merge( $statuses, array( 'active', 'approved' ) ) );
+			}
+			// Never expose pending / rejected / suspended on public searches.
+			if ( ! empty( $args['public'] ) ) {
+				$statuses = array_values( array_intersect( $statuses, array( 'approved', 'active' ) ) );
+			}
+			if ( ! empty( $statuses ) ) {
+				$placeholders = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+				$where[]      = "t.status IN ({$placeholders})";
+				foreach ( $statuses as $st ) {
+					$params[] = $st;
+				}
+			}
+		} elseif ( $args['status'] ) {
+			$status = sanitize_key( $args['status'] );
+			if ( 'approved' === $status ) {
+				$where[]  = 't.status IN (%s, %s)';
+				$params[] = 'approved';
+				$params[] = 'active';
+			} else {
+				$where[]  = 't.status = %s';
+				$params[] = $status;
+			}
 		}
 
 		if ( $args['search'] ) {
@@ -252,17 +285,57 @@ class GMM_Search {
 			$params[] = $like;
 		}
 
-		if ( $args['instrument'] ) {
-			$like     = '%' . $wpdb->esc_like( $args['instrument'] ) . '%';
-			$where[]  = '(t.specialization LIKE %s OR t.bio LIKE %s)';
-			$params[] = $like;
-			$params[] = $like;
+		$instruments = array();
+		if ( ! empty( $args['instruments'] ) && is_array( $args['instruments'] ) ) {
+			$instruments = array_values( array_filter( array_map( 'sanitize_text_field', $args['instruments'] ) ) );
+		} elseif ( $args['instrument'] ) {
+			$instruments = array( $args['instrument'] );
+		}
+		if ( ! empty( $instruments ) ) {
+			$inst_parts = array();
+			foreach ( $instruments as $inst ) {
+				$inst = sanitize_text_field( (string) $inst );
+				if ( '' === $inst ) {
+					continue;
+				}
+				// Normalize theory → music theory.
+				if ( in_array( strtolower( $inst ), array( 'theory', 'music-theory', 'music_theory' ), true ) ) {
+					$inst = 'theory';
+				}
+				$like         = '%' . $wpdb->esc_like( $inst ) . '%';
+				$inst_parts[] = '(t.specialization LIKE %s OR t.bio LIKE %s OR t.experience LIKE %s)';
+				$params[]     = $like;
+				$params[]     = $like;
+				$params[]     = $like;
+			}
+			if ( ! empty( $inst_parts ) ) {
+				$where[] = '(' . implode( ' OR ', $inst_parts ) . ')';
+			}
 		}
 
 		if ( $args['experience'] ) {
-			$like     = '%' . $wpdb->esc_like( $args['experience'] ) . '%';
-			$where[]  = 't.experience LIKE %s';
-			$params[] = $like;
+			$exp = sanitize_key( $args['experience'] );
+			if ( in_array( $exp, array( 'beginner', 'beginner_teacher' ), true ) ) {
+				$where[]  = '(LOWER(t.experience) LIKE %s OR t.experience LIKE %s OR t.experience LIKE %s OR t.experience LIKE %s OR t.experience LIKE %s OR t.experience = %s)';
+				$params[] = '%' . $wpdb->esc_like( 'beginner' ) . '%';
+				$params[] = '%1%';
+				$params[] = '%2%';
+				$params[] = '%3%';
+				$params[] = '%4%';
+				$params[] = '';
+			} elseif ( in_array( $exp, array( 'experienced', 'experienced_teacher', 'intermediate', 'advanced' ), true ) ) {
+				$where[]  = '(LOWER(t.experience) LIKE %s OR LOWER(t.experience) LIKE %s OR LOWER(t.experience) LIKE %s OR t.experience LIKE %s OR t.experience LIKE %s OR t.experience LIKE %s)';
+				$params[] = '%' . $wpdb->esc_like( 'experienc' ) . '%';
+				$params[] = '%' . $wpdb->esc_like( 'intermediate' ) . '%';
+				$params[] = '%' . $wpdb->esc_like( 'advanced' ) . '%';
+				$params[] = '%5%';
+				$params[] = '%6%';
+				$params[] = '%10%';
+			} else {
+				$like     = '%' . $wpdb->esc_like( $args['experience'] ) . '%';
+				$where[]  = 't.experience LIKE %s';
+				$params[] = $like;
+			}
 		}
 
 		if ( $args['category'] ) {
@@ -288,6 +361,17 @@ class GMM_Search {
 			$params[] = $min_rating;
 		}
 
+		$class_status_sql = "c2.status IN ('approved','published','active')";
+
+		if ( '' !== $args['price_min'] && null !== $args['price_min'] ) {
+			$where[]  = "(SELECT MIN(c2.price) FROM {$classes} c2 WHERE c2.teacher_id = t.id AND {$class_status_sql}) >= %f";
+			$params[] = (float) $args['price_min'];
+		}
+		if ( '' !== $args['price_max'] && null !== $args['price_max'] ) {
+			$where[]  = "((SELECT MIN(c2.price) FROM {$classes} c2 WHERE c2.teacher_id = t.id AND {$class_status_sql}) IS NULL OR (SELECT MIN(c2.price) FROM {$classes} c2 WHERE c2.teacher_id = t.id AND {$class_status_sql}) <= %f)";
+			$params[] = (float) $args['price_max'];
+		}
+
 		$where_sql = implode( ' AND ', $where );
 
 		$count_sql = "SELECT COUNT(*) FROM {$teachers} t WHERE {$where_sql}";
@@ -298,15 +382,19 @@ class GMM_Search {
 		$order = self::teacher_order_by( $args['sort'] );
 
 		$select = "SELECT t.id, t.user_id, t.first_name, t.last_name, t.specialization, t.experience, t.rating, t.status, t.profile_image, t.bio, t.created_at,
-			(SELECT COUNT(DISTINCT b.student_id) FROM {$bookings} b WHERE b.teacher_id = t.id AND b.booking_status IN ('confirmed','completed')) AS student_count";
+			(SELECT COUNT(DISTINCT b.student_id) FROM {$bookings} b WHERE b.teacher_id = t.id AND b.booking_status IN ('confirmed','completed','upcoming')) AS student_count,
+			(SELECT COUNT(*) FROM {$classes} c2 WHERE c2.teacher_id = t.id AND {$class_status_sql}) AS class_count,
+			(SELECT MIN(c2.price) FROM {$classes} c2 WHERE c2.teacher_id = t.id AND {$class_status_sql}) AS min_price";
 
 		if ( empty( $args['public'] ) ) {
 			$select = "SELECT t.id, t.user_id, t.first_name, t.last_name, t.email, t.phone, t.specialization, t.experience, t.rating, t.status, t.profile_image, t.bio, t.created_at,
-				(SELECT COUNT(DISTINCT b.student_id) FROM {$bookings} b WHERE b.teacher_id = t.id AND b.booking_status IN ('confirmed','completed')) AS student_count";
+				(SELECT COUNT(DISTINCT b.student_id) FROM {$bookings} b WHERE b.teacher_id = t.id AND b.booking_status IN ('confirmed','completed','upcoming')) AS student_count,
+				(SELECT COUNT(*) FROM {$classes} c2 WHERE c2.teacher_id = t.id AND {$class_status_sql}) AS class_count,
+				(SELECT MIN(c2.price) FROM {$classes} c2 WHERE c2.teacher_id = t.id AND {$class_status_sql}) AS min_price";
 		}
 
-		$sql      = "{$select} FROM {$teachers} t WHERE {$where_sql} {$order} LIMIT %d OFFSET %d";
-		$qparams  = $params;
+		$sql       = "{$select} FROM {$teachers} t WHERE {$where_sql} {$order} LIMIT %d OFFSET %d";
+		$qparams   = $params;
 		$qparams[] = $args['per_page'];
 		$qparams[] = $args['offset'];
 
@@ -801,6 +889,9 @@ class GMM_Search {
 			'name'           => isset( $args['name'] ) ? sanitize_text_field( (string) $args['name'] ) : '',
 			'specialization' => isset( $args['specialization'] ) ? sanitize_text_field( (string) $args['specialization'] ) : '',
 			'instrument'     => isset( $args['instrument'] ) ? sanitize_text_field( (string) $args['instrument'] ) : '',
+			'instruments'    => ( isset( $args['instruments'] ) && is_array( $args['instruments'] ) )
+				? array_values( array_filter( array_map( 'sanitize_text_field', $args['instruments'] ) ) )
+				: array(),
 			'experience'     => isset( $args['experience'] ) ? sanitize_text_field( (string) $args['experience'] ) : '',
 			'category'       => isset( $args['category'] ) ? sanitize_text_field( (string) $args['category'] ) : '',
 			'difficulty'     => isset( $args['difficulty'] ) ? sanitize_text_field( (string) $args['difficulty'] ) : '',
@@ -933,7 +1024,18 @@ class GMM_Search {
 			case 'rating':
 				return 'ORDER BY t.rating DESC, t.created_at DESC';
 			case 'most_students':
-				return 'ORDER BY student_count DESC, t.rating DESC';
+			case 'students':
+			case 'recommended':
+				return 'ORDER BY student_count DESC, t.rating DESC, t.created_at DESC';
+			case 'most_classes':
+			case 'classes':
+				return 'ORDER BY class_count DESC, t.rating DESC, t.created_at DESC';
+			case 'price_asc':
+			case 'price_low':
+				return 'ORDER BY (min_price IS NULL), min_price ASC, t.rating DESC';
+			case 'price_desc':
+			case 'price_high':
+				return 'ORDER BY (min_price IS NULL), min_price DESC, t.rating DESC';
 			case 'newest':
 			default:
 				return 'ORDER BY t.created_at DESC, t.id DESC';

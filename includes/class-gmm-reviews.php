@@ -565,6 +565,28 @@ class GMM_Reviews {
 	}
 
 	/**
+	 * Count approved reviews for a teacher.
+	 *
+	 * @param int $teacher_id Teacher row ID.
+	 * @return int
+	 */
+	public static function count_teacher_reviews( $teacher_id ) {
+		$teacher_id = absint( $teacher_id );
+		if ( ! $teacher_id ) {
+			return 0;
+		}
+		global $wpdb;
+		$table = GMM_Database::table( 'reviews' );
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE teacher_id = %d AND status = %s",
+				$teacher_id,
+				self::STATUS_APPROVED
+			)
+		);
+	}
+
+	/**
 	 * Calculate and store average class rating on gmm_classes.
 	 *
 	 * @param int $class_id Class ID.

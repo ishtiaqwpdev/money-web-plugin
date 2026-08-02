@@ -58,7 +58,10 @@ class GMM_Teacher {
 
 		switch ( $tag ) {
 			case 'gmm_teacher_dashboard':
-				$args['dashboard_data'] = gmm_get_teacher_dashboard_data( $user_id );
+				// GMM_Teacher_Dashboard injects full payload at priority 20.
+				if ( ! class_exists( 'GMM_Teacher_Dashboard' ) ) {
+					$args['dashboard_data'] = gmm_get_teacher_dashboard_data( $user_id );
+				}
 				break;
 			case 'gmm_teacher_classes':
 				$args['classes'] = class_exists( 'GMM_Teacher_Classes' )
@@ -66,21 +69,31 @@ class GMM_Teacher {
 					: array();
 				break;
 			case 'gmm_teacher_bookings':
-				$args['bookings'] = self::get_teacher_bookings( $user_id );
+				// GMM_Teacher_Bookings injects full payload at priority 25.
+				if ( ! class_exists( 'GMM_Teacher_Bookings' ) ) {
+					$args['bookings'] = self::get_teacher_bookings( $user_id );
+				}
 				break;
 			case 'gmm_teacher_availability':
-				$args['availability'] = class_exists( 'GMM_Availability' )
-					? GMM_Availability::get_availability( $user_id )
-					: array();
+				$args['availability'] = class_exists( 'GMM_Teacher_Availability' )
+					? GMM_Teacher_Availability::get_availability( $user_id )
+					: ( class_exists( 'GMM_Availability' )
+						? GMM_Availability::get_availability( $user_id )
+						: array() );
 				break;
 			case 'gmm_teacher_withdrawals':
-				$args['earnings']           = function_exists( 'gmm_get_teacher_earnings' )
-					? gmm_get_teacher_earnings( $user_id )
-					: self::get_earnings( $user_id );
-				$args['transactions']       = function_exists( 'gmm_get_teacher_transactions' )
-					? gmm_get_teacher_transactions( $user_id )
-					: array();
-				$args['withdrawal_history'] = self::get_withdrawal_history( $user_id );
+				// GMM_Teacher_Earnings injects full payload at priority 25.
+				if ( ! class_exists( 'GMM_Teacher_Earnings' ) ) {
+					$args['earnings']           = function_exists( 'gmm_get_teacher_earnings' )
+						? gmm_get_teacher_earnings( $user_id )
+						: self::get_earnings( $user_id );
+					$args['transactions']       = function_exists( 'gmm_get_teacher_transactions' )
+						? gmm_get_teacher_transactions( $user_id )
+						: array();
+					$args['withdrawal_history'] = function_exists( 'gmm_get_withdrawal_history' )
+						? gmm_get_withdrawal_history( $user_id )
+						: self::get_withdrawal_history( $user_id );
+				}
 				break;
 		}
 
@@ -290,26 +303,33 @@ class GMM_Teacher {
 			)
 		);
 
-		$total_earnings = (float) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COALESCE(SUM(amount),0) FROM {$payments_t}
-				WHERE teacher_id = %d AND payment_status IN ('completed','paid','success')",
-				$teacher_id
-			)
-		);
+		$total_earnings      = 0.0;
+		$pending_withdrawals = 0.0;
 
-		// Pending withdrawals prepared as pending payment rows marked withdrawal (no gateway yet).
-		$pending_withdrawals = (float) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COALESCE(SUM(amount),0) FROM {$payments_t}
-				WHERE teacher_id = %d
-				AND payment_method = %s
-				AND payment_status = %s",
-				$teacher_id,
-				'withdrawal',
-				'pending'
-			)
-		);
+		if ( class_exists( 'GMM_Teacher_Earnings' ) ) {
+			$earn                = GMM_Teacher_Earnings::get_earnings( $user_id );
+			$total_earnings      = isset( $earn['completed_earnings'] ) ? (float) $earn['completed_earnings'] : 0.0;
+			$pending_withdrawals = isset( $earn['pending_withdrawals'] ) ? (float) $earn['pending_withdrawals'] : 0.0;
+		} else {
+			$total_earnings = (float) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COALESCE(SUM(amount),0) FROM {$payments_t}
+					WHERE teacher_id = %d AND payment_status IN ('completed','paid','success')",
+					$teacher_id
+				)
+			);
+			$pending_withdrawals = (float) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COALESCE(SUM(amount),0) FROM {$payments_t}
+					WHERE teacher_id = %d
+					AND payment_method = %s
+					AND payment_status = %s",
+					$teacher_id,
+					'withdrawal',
+					'pending'
+				)
+			);
+		}
 
 		return array(
 			'total_classes'       => $total_classes,
@@ -607,7 +627,6 @@ class GMM_Teacher {
 			'first_name'     => 'sanitize_text_field',
 			'last_name'      => 'sanitize_text_field',
 			'phone'          => 'sanitize_text_field',
-			'profile_image'  => 'esc_url_raw',
 			'specialization' => 'sanitize_text_field',
 			'experience'     => 'sanitize_text_field',
 		);
@@ -615,6 +634,16 @@ class GMM_Teacher {
 		foreach ( $map as $key => $cb ) {
 			if ( array_key_exists( $key, $data ) ) {
 				$clean[ $key ] = call_user_func( $cb, (string) $data[ $key ] );
+			}
+		}
+
+		if ( array_key_exists( 'profile_image', $data ) ) {
+			$raw = (string) $data['profile_image'];
+			if ( ctype_digit( $raw ) || is_numeric( $raw ) ) {
+				$id = absint( $raw );
+				$clean['profile_image'] = $id ? (string) $id : '';
+			} else {
+				$clean['profile_image'] = '';
 			}
 		}
 

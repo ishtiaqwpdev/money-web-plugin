@@ -15,8 +15,21 @@ if ( ! isset( $user_name ) ) {
 if ( ! isset( $user_first_name ) ) {
 	$user_first_name = $user_name;
 }
+
+$booking_rows  = ( isset( $booking_rows ) && is_array( $booking_rows ) ) ? $booking_rows : array();
+$booking_stats = ( isset( $booking_stats ) && is_array( $booking_stats ) ) ? $booking_stats : array(
+	'total'     => 0,
+	'upcoming'  => 0,
+	'completed' => 0,
+	'cancelled' => 0,
+);
+$user_avatar   = ! empty( $user_avatar ) ? (string) $user_avatar : gmm_design_asset_url( 'assets/img/team/02.jpg' );
+$teachers_url  = ! empty( $teachers_url ) ? (string) $teachers_url : ( function_exists( 'gmm_get_page_link' ) ? gmm_get_page_link( 'teachers' ) : '#' );
+$booking_form_url = ! empty( $booking_form_url ) ? (string) $booking_form_url : ( function_exists( 'gmm_get_page_link' ) ? gmm_get_page_link( 'booking_form' ) : '#' );
+$lessons_url   = ! empty( $lessons_url ) ? (string) $lessons_url : ( function_exists( 'gmm_get_page_link' ) ? gmm_get_page_link( 'student_lessons' ) : '#' );
+$has_rows      = ! empty( $booking_rows );
 ?>
-<div class="gmm-wrapper gmm-dashboard">
+<div class="gmm-wrapper gmm-dashboard" id="gmm-student-bookings">
 
         <!-- student bookings -->
         <div class="student-dashboard-area py-120">
@@ -26,7 +39,7 @@ if ( ! isset( $user_first_name ) ) {
                 <div class="sd-profile-header">
                     <div class="sd-profile-main">
                         <div class="sd-profile-avatar">
-                            <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
+                            <img src="<?php echo esc_url( $user_avatar ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
                         </div>
                         <div class="sd-profile-meta">
                             <h2><?php echo esc_html( $user_name ); ?></h2>
@@ -38,7 +51,7 @@ if ( ! isset( $user_first_name ) ) {
                         </div>
                     </div>
                     <div class="sd-profile-actions">
-                        <a href="teachers.html" class="theme-btn"><i class="far fa-calendar-plus"></i> Book a Lesson</a>
+                        <a href="<?php echo esc_url( $teachers_url ); ?>" class="theme-btn"><i class="far fa-calendar-plus"></i> Book a Lesson</a>
                     </div>
                 </div>
 
@@ -77,7 +90,7 @@ if ( ! isset( $user_first_name ) ) {
                                     <h3>My Bookings</h3>
                                     <p>Track your lesson requests, confirmed sessions, and previous bookings.</p>
                                 </div>
-                                <a href="teachers.html" class="theme-btn"><i class="far fa-plus"></i> New Booking</a>
+                                <a href="<?php echo esc_url( $teachers_url ); ?>" class="theme-btn"><i class="far fa-plus"></i> New Booking</a>
                             </div>
                         </section>
 
@@ -86,28 +99,28 @@ if ( ! isset( $user_first_name ) ) {
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-calendar-check"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="15">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) (int) $booking_stats['total'] ); ?>" id="sb-stat-total"><?php echo esc_html( (string) (int) $booking_stats['total'] ); ?></span>
                                     <span class="sd-stat-title">Total Bookings</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-clock"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="5">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) (int) $booking_stats['upcoming'] ); ?>" id="sb-stat-upcoming"><?php echo esc_html( (string) (int) $booking_stats['upcoming'] ); ?></span>
                                     <span class="sd-stat-title">Upcoming</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-circle-check"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="8">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) (int) $booking_stats['completed'] ); ?>" id="sb-stat-completed"><?php echo esc_html( (string) (int) $booking_stats['completed'] ); ?></span>
                                     <span class="sd-stat-title">Completed</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-circle-xmark"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="2">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) (int) $booking_stats['cancelled'] ); ?>" id="sb-stat-cancelled"><?php echo esc_html( (string) (int) $booking_stats['cancelled'] ); ?></span>
                                     <span class="sd-stat-title">Cancelled</span>
                                 </div>
                             </div>
@@ -123,14 +136,14 @@ if ( ! isset( $user_first_name ) ) {
                                 <button type="button" class="sl-tab" data-filter="cancelled" role="tab" aria-selected="false">Cancelled</button>
                             </div>
 
-                            <div class="sl-empty" id="sb-empty" hidden>
+                            <div class="sl-empty" id="sb-empty" <?php echo $has_rows ? 'hidden' : ''; ?>>
                                 <i class="far fa-calendar-xmark"></i>
                                 <h3>No bookings available.</h3>
                                 <p>Book your first gospel music lesson today.</p>
-                                <a href="teachers.html" class="theme-btn"><i class="far fa-users"></i> Browse Teachers</a>
+                                <a href="<?php echo esc_url( $teachers_url ); ?>" class="theme-btn"><i class="far fa-users"></i> Browse Teachers</a>
                             </div>
 
-                            <div class="table-responsive td-table-wrap" id="sb-table-wrap">
+                            <div class="table-responsive td-table-wrap" id="sb-table-wrap" <?php echo $has_rows ? '' : 'hidden'; ?>>
                                 <table class="table td-table sb-table">
                                     <thead>
                                         <tr>
@@ -144,229 +157,58 @@ if ( ! isset( $user_first_name ) ) {
                                         </tr>
                                     </thead>
                                     <tbody id="sb-table-body">
-
-                                        <tr class="sb-row" data-status="confirmed"
-                                            data-teacher="John Smith"
-                                            data-image="assets/img/team/01.jpg"
-                                            data-class="Beginner Gospel Piano"
-                                            data-date="March 20, 2026"
-                                            data-time="10:00 AM"
-                                            data-duration="60 Minutes"
-                                            data-price="$40"
-                                            data-notes="Confirmed booking for worship piano fundamentals.">
+										<?php foreach ( $booking_rows as $row ) :
+											$status   = isset( $row['status'] ) ? (string) $row['status'] : 'pending';
+											$badge    = isset( $row['badge_class'] ) ? (string) $row['badge_class'] : ( 'is-' . $status );
+											$teacher  = isset( $row['teacher_name'] ) ? (string) $row['teacher_name'] : '';
+											$image    = isset( $row['teacher_image'] ) ? (string) $row['teacher_image'] : gmm_design_asset_url( 'assets/img/team/01.jpg' );
+											$class_n  = isset( $row['class_name'] ) ? (string) $row['class_name'] : '';
+											$date_l   = isset( $row['date_label'] ) ? (string) $row['date_label'] : '';
+											$time_l   = isset( $row['time_label'] ) ? (string) $row['time_label'] : '';
+											$dur_l    = isset( $row['duration_label'] ) ? (string) $row['duration_label'] : '';
+											$price_l  = isset( $row['amount_label'] ) ? (string) $row['amount_label'] : '';
+											$notes    = isset( $row['notes'] ) ? (string) $row['notes'] : '';
+											$can_cancel = ! empty( $row['can_cancel'] );
+											$book_again = ! empty( $row['book_again_url'] ) ? (string) $row['book_again_url'] : $booking_form_url;
+											$bid = isset( $row['id'] ) ? (int) $row['id'] : 0;
+											?>
+                                        <tr class="sb-row" data-status="<?php echo esc_attr( $status ); ?>"
+											data-booking-id="<?php echo esc_attr( (string) $bid ); ?>"
+                                            data-teacher="<?php echo esc_attr( $teacher ); ?>"
+                                            data-image="<?php echo esc_attr( $image ); ?>"
+                                            data-class="<?php echo esc_attr( $class_n ); ?>"
+                                            data-date="<?php echo esc_attr( $date_l ); ?>"
+                                            data-time="<?php echo esc_attr( $time_l ); ?>"
+                                            data-duration="<?php echo esc_attr( $dur_l ); ?>"
+                                            data-price="<?php echo esc_attr( $price_l ); ?>"
+                                            data-notes="<?php echo esc_attr( $notes ); ?>">
                                             <td data-label="Teacher">
                                                 <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="John Smith">
-                                                    <strong>John Smith</strong>
+                                                    <img src="<?php echo esc_url( $image ); ?>" alt="<?php echo esc_attr( $teacher ); ?>">
+                                                    <strong><?php echo esc_html( $teacher ); ?></strong>
                                                 </div>
                                             </td>
-                                            <td data-label="Class">Beginner Gospel Piano</td>
-                                            <td data-label="Date">March 20, 2026</td>
-                                            <td data-label="Time">10:00 AM</td>
-                                            <td data-label="Duration">60 Minutes</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed">Confirmed</span></td>
+                                            <td data-label="Class"><?php echo esc_html( $class_n ); ?></td>
+                                            <td data-label="Date"><?php echo esc_html( $date_l ); ?></td>
+                                            <td data-label="Time"><?php echo esc_html( $time_l ); ?></td>
+                                            <td data-label="Duration"><?php echo esc_html( $dur_l ); ?></td>
+                                            <td data-label="Status"><span class="sb-badge <?php echo esc_attr( $badge ); ?>"><?php echo esc_html( isset( $row['status_label'] ) ? (string) $row['status_label'] : ucfirst( $status ) ); ?></span></td>
                                             <td data-label="Action">
                                                 <div class="sb-actions">
-                                                    <a href="<?php echo esc_url( gmm_get_page_link( 'student_lessons' ) ); ?>" class="theme-btn theme-btn-outline sd-action-btn">View Lesson</a>
-                                                    <a href="<?php echo esc_url( gmm_get_page_link( 'student_dashboard' ) ); ?>" class="theme-btn theme-btn-outline sd-action-btn" data-gmm-message="student" data-teacher-name="John Smith" data-teacher-id="john-smith" data-student-name="Sarah Johnson" data-student-id="sarah-johnson">Message Teacher</a>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sb-row" data-status="pending"
-                                            data-teacher="Emily Davis"
-                                            data-image="assets/img/team/02.jpg"
-                                            data-class="Vocal Training"
-                                            data-date="March 25, 2026"
-                                            data-time="02:00 PM"
-                                            data-duration="45 Minutes"
-                                            data-price="$45"
-                                            data-notes="Awaiting teacher confirmation for vocal coaching.">
-                                            <td data-label="Teacher">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="Emily Davis">
-                                                    <strong>Emily Davis</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Class">Vocal Training</td>
-                                            <td data-label="Date">March 25, 2026</td>
-                                            <td data-label="Time">02:00 PM</td>
-                                            <td data-label="Duration">45 Minutes</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending">Pending</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
+													<?php if ( 'confirmed' === $status ) : ?>
+                                                    <a href="<?php echo esc_url( $lessons_url ); ?>" class="theme-btn theme-btn-outline sd-action-btn">View Lesson</a>
+													<?php else : ?>
                                                     <button type="button" class="theme-btn theme-btn-outline sd-action-btn sb-open-details">View Details</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sb-cancel-btn">Cancel Request</button>
+													<?php endif; ?>
+													<?php if ( $can_cancel ) : ?>
+                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sb-cancel-btn" data-booking-id="<?php echo esc_attr( (string) $bid ); ?>">Cancel Request</button>
+													<?php elseif ( 'completed' === $status ) : ?>
+                                                    <a href="<?php echo esc_url( $book_again ); ?>" class="theme-btn theme-btn-outline sd-action-btn">Book Again</a>
+													<?php endif; ?>
                                                 </div>
                                             </td>
                                         </tr>
-
-                                        <tr class="sb-row" data-status="completed"
-                                            data-teacher="Michael Brown"
-                                            data-image="assets/img/team/03.jpg"
-                                            data-class="Guitar Basics"
-                                            data-date="March 10, 2026"
-                                            data-time="11:00 AM"
-                                            data-duration="60 Minutes"
-                                            data-price="$40"
-                                            data-notes="Completed gospel guitar session. Practice chord transitions.">
-                                            <td data-label="Teacher">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/03.jpg' ) ); ?>" alt="Michael Brown">
-                                                    <strong>Michael Brown</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Class">Guitar Basics</td>
-                                            <td data-label="Date">March 10, 2026</td>
-                                            <td data-label="Time">11:00 AM</td>
-                                            <td data-label="Duration">60 Minutes</td>
-                                            <td data-label="Status"><span class="sb-badge is-completed">Completed</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sb-review-btn">Leave Review</button>
-                                                    <a href="booking.html" class="theme-btn theme-btn-outline sd-action-btn">Book Again</a>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sb-row" data-status="confirmed"
-                                            data-teacher="David Wilson"
-                                            data-image="assets/img/team/04.jpg"
-                                            data-class="Worship Leadership"
-                                            data-date="March 28, 2026"
-                                            data-time="04:00 PM"
-                                            data-duration="60 Minutes"
-                                            data-price="$55"
-                                            data-notes="Confirmed worship leadership coaching session.">
-                                            <td data-label="Teacher">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/04.jpg' ) ); ?>" alt="David Wilson">
-                                                    <strong>David Wilson</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Class">Worship Leadership</td>
-                                            <td data-label="Date">March 28, 2026</td>
-                                            <td data-label="Time">04:00 PM</td>
-                                            <td data-label="Duration">60 Minutes</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed">Confirmed</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <a href="<?php echo esc_url( gmm_get_page_link( 'student_lessons' ) ); ?>" class="theme-btn theme-btn-outline sd-action-btn">View Lesson</a>
-                                                    <a href="<?php echo esc_url( gmm_get_page_link( 'student_dashboard' ) ); ?>" class="theme-btn theme-btn-outline sd-action-btn" data-gmm-message="student" data-teacher-name="John Smith" data-teacher-id="john-smith" data-student-name="Sarah Johnson" data-student-id="sarah-johnson">Message Teacher</a>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sb-row" data-status="pending"
-                                            data-teacher="Olivia Harris"
-                                            data-image="assets/img/team/07.jpg"
-                                            data-class="Music Theory"
-                                            data-date="April 2, 2026"
-                                            data-time="09:00 AM"
-                                            data-duration="90 Minutes"
-                                            data-price="$38"
-                                            data-notes="Pending theory lesson request.">
-                                            <td data-label="Teacher">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/07.jpg' ) ); ?>" alt="Olivia Harris">
-                                                    <strong>Olivia Harris</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Class">Music Theory</td>
-                                            <td data-label="Date">April 2, 2026</td>
-                                            <td data-label="Time">09:00 AM</td>
-                                            <td data-label="Duration">90 Minutes</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending">Pending</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sb-open-details">View Details</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sb-cancel-btn">Cancel Request</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sb-row" data-status="completed"
-                                            data-teacher="John Smith"
-                                            data-image="assets/img/team/01.jpg"
-                                            data-class="Beginner Gospel Piano"
-                                            data-date="March 5, 2026"
-                                            data-time="10:00 AM"
-                                            data-duration="60 Minutes"
-                                            data-price="$40"
-                                            data-notes="Completed — great progress on left-hand patterns.">
-                                            <td data-label="Teacher">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/01.jpg' ) ); ?>" alt="John Smith">
-                                                    <strong>John Smith</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Class">Beginner Gospel Piano</td>
-                                            <td data-label="Date">March 5, 2026</td>
-                                            <td data-label="Time">10:00 AM</td>
-                                            <td data-label="Duration">60 Minutes</td>
-                                            <td data-label="Status"><span class="sb-badge is-completed">Completed</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sb-review-btn">Leave Review</button>
-                                                    <a href="booking.html" class="theme-btn theme-btn-outline sd-action-btn">Book Again</a>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sb-row" data-status="cancelled"
-                                            data-teacher="Sophia Martinez"
-                                            data-image="assets/img/team/05.jpg"
-                                            data-class="Drums Foundations"
-                                            data-date="March 8, 2026"
-                                            data-time="03:00 PM"
-                                            data-duration="45 Minutes"
-                                            data-price="$42"
-                                            data-notes="Cancelled by student — schedule conflict.">
-                                            <td data-label="Teacher">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/05.jpg' ) ); ?>" alt="Sophia Martinez">
-                                                    <strong>Sophia Martinez</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Class">Drums Foundations</td>
-                                            <td data-label="Date">March 8, 2026</td>
-                                            <td data-label="Time">03:00 PM</td>
-                                            <td data-label="Duration">45 Minutes</td>
-                                            <td data-label="Status"><span class="sb-badge is-cancelled">Cancelled</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sb-open-details">View Details</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sb-row" data-status="cancelled"
-                                            data-teacher="James Lee"
-                                            data-image="assets/img/team/06.jpg"
-                                            data-class="Hammond Organ Intro"
-                                            data-date="February 28, 2026"
-                                            data-time="01:00 PM"
-                                            data-duration="60 Minutes"
-                                            data-price="$50"
-                                            data-notes="Cancelled — teacher unavailable, refund issued (demo).">
-                                            <td data-label="Teacher">
-                                                <div class="sb-teacher-cell">
-                                                    <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/06.jpg' ) ); ?>" alt="James Lee">
-                                                    <strong>James Lee</strong>
-                                                </div>
-                                            </td>
-                                            <td data-label="Class">Hammond Organ Intro</td>
-                                            <td data-label="Date">February 28, 2026</td>
-                                            <td data-label="Time">01:00 PM</td>
-                                            <td data-label="Duration">60 Minutes</td>
-                                            <td data-label="Status"><span class="sb-badge is-cancelled">Cancelled</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sb-open-details">View Details</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-
+										<?php endforeach; ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -411,7 +253,7 @@ if ( ! isset( $user_first_name ) ) {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="theme-btn theme-btn-outline" data-bs-dismiss="modal">Close</button>
-                    <a href="booking.html" class="theme-btn" id="sb-modal-book-again">
+                    <a href="<?php echo esc_url( $booking_form_url ); ?>" class="theme-btn" id="sb-modal-book-again">
                         <i class="far fa-calendar-plus"></i> Book Again
                     </a>
                 </div>

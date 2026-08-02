@@ -25,11 +25,14 @@ class GMM_Auth {
 	public static function register_hooks( $loader ) {
 		$instance = new self();
 
-		$loader->add_action( 'admin_post_nopriv_gmm_student_register', $instance, 'handle_student_register' );
-		$loader->add_action( 'admin_post_gmm_student_register', $instance, 'handle_student_register' );
+		// Student register/login owned by GMM_Student_Auth when available.
+		if ( ! class_exists( 'GMM_Student_Auth' ) ) {
+			$loader->add_action( 'admin_post_nopriv_gmm_student_register', $instance, 'handle_student_register' );
+			$loader->add_action( 'admin_post_gmm_student_register', $instance, 'handle_student_register' );
+			$loader->add_action( 'admin_post_nopriv_gmm_student_login', $instance, 'handle_student_login' );
+			$loader->add_action( 'admin_post_gmm_student_login', $instance, 'handle_student_login' );
+		}
 		// Teacher registration is owned by GMM_Teacher_Auth.
-		$loader->add_action( 'admin_post_nopriv_gmm_student_login', $instance, 'handle_student_login' );
-		$loader->add_action( 'admin_post_gmm_student_login', $instance, 'handle_student_login' );
 		$loader->add_action( 'admin_post_nopriv_gmm_teacher_login', $instance, 'handle_teacher_login' );
 		$loader->add_action( 'admin_post_gmm_teacher_login', $instance, 'handle_teacher_login' );
 		$loader->add_action( 'admin_post_gmm_logout', $instance, 'handle_logout' );
@@ -47,6 +50,10 @@ class GMM_Auth {
 	 * @return int|WP_Error User ID.
 	 */
 	public static function student_register( $data, $nonce = '' ) {
+		if ( class_exists( 'GMM_Student_Auth' ) ) {
+			return GMM_Student_Auth::register( $data, $nonce );
+		}
+
 		if ( '' !== $nonce && ! self::verify_nonce( $nonce ) ) {
 			return new WP_Error( 'gmm_nonce', __( 'Invalid security token.', 'gospel-music-mastery' ) );
 		}
@@ -60,6 +67,7 @@ class GMM_Auth {
 		$phone       = isset( $data['phone'] ) ? sanitize_text_field( (string) $data['phone'] ) : '';
 		$level       = isset( $data['learning_level'] ) ? sanitize_text_field( (string) $data['learning_level'] ) : '';
 		$instruments = isset( $data['preferred_instruments'] ) ? sanitize_textarea_field( (string) $data['preferred_instruments'] ) : '';
+		$goals       = isset( $data['learning_goals'] ) ? sanitize_textarea_field( (string) $data['learning_goals'] ) : '';
 
 		$user_id = self::create_wp_user(
 			$clean['username'],
@@ -82,32 +90,16 @@ class GMM_Auth {
 				'email'                 => $clean['email'],
 				'phone'                 => $phone,
 				'learning_level'        => $level,
+				'learning_goals'        => $goals,
 				'preferred_instruments' => $instruments,
 			)
 		);
 
 		if ( is_wp_error( $profile ) ) {
-			// User exists; profile failed — keep user, return error for retry of profile.
 			return $profile;
 		}
 
-		/**
-		 * Fires after student registration.
-		 *
-		 * @since 1.0.0
-		 * @param int                  $user_id User ID.
-		 * @param array<string, mixed> $clean   Sanitized core fields.
-		 */
 		do_action( 'gmm_student_registered', $user_id, $clean );
-
-		/**
-		 * Fires after any GMM user registration.
-		 *
-		 * @since 1.0.0
-		 * @param int                  $user_id User ID.
-		 * @param array<string, mixed> $clean   Sanitized core fields.
-		 * @param string               $role    Role key (gmm_student|gmm_teacher).
-		 */
 		do_action( 'gmm_user_registered', $user_id, $clean, GMM_Roles::ROLE_STUDENT );
 
 		return $user_id;
@@ -266,6 +258,11 @@ class GMM_Auth {
 	 * @return void
 	 */
 	public static function require_student() {
+		if ( class_exists( 'GMM_Student_Auth' ) ) {
+			GMM_Student_Auth::require_dashboard_access();
+			return;
+		}
+
 		self::require_login( class_exists( 'GMM_Pages' ) ? GMM_Pages::get_page_url( 'student_login' ) : wp_login_url() );
 
 		if ( current_user_can( 'manage_options' ) || gmm_is_student() ) {
@@ -373,6 +370,11 @@ class GMM_Auth {
 	 * @return string
 	 */
 	public function enhance_auth_shortcode_html( $html, $tag ) {
+		// Student auth forms are enhanced by GMM_Student_Auth.
+		if ( class_exists( 'GMM_Student_Auth' ) && in_array( $tag, array( 'gmm_student_register', 'gmm_student_login' ), true ) ) {
+			return $html;
+		}
+
 		$map = array(
 			'gmm_student_register' => array(
 				'form_id' => 'student-register-form',
@@ -711,7 +713,7 @@ class GMM_Auth {
 				'phone'                 => sanitize_text_field( isset( $data['phone'] ) ? $data['phone'] : '' ),
 				'profile_image'         => '',
 				'learning_level'        => sanitize_text_field( isset( $data['learning_level'] ) ? $data['learning_level'] : '' ),
-				'learning_goals'        => '',
+				'learning_goals'        => sanitize_textarea_field( isset( $data['learning_goals'] ) ? $data['learning_goals'] : '' ),
 				'preferred_instruments' => sanitize_textarea_field( isset( $data['preferred_instruments'] ) ? $data['preferred_instruments'] : '' ),
 				'bio'                   => '',
 				'status'                => 'active',

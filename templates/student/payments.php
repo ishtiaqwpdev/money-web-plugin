@@ -15,8 +15,33 @@ if ( ! isset( $user_name ) ) {
 if ( ! isset( $user_first_name ) ) {
 	$user_first_name = $user_name;
 }
+
+$payment_rows  = ( isset( $payment_rows ) && is_array( $payment_rows ) ) ? $payment_rows : array();
+$payment_stats = ( isset( $payment_stats ) && is_array( $payment_stats ) ) ? $payment_stats : array(
+	'total_spent'     => 0,
+	'completed_count' => 0,
+	'pending_count'   => 0,
+	'refund_count'    => 0,
+);
+$billing_info  = ( isset( $billing_info ) && is_array( $billing_info ) ) ? $billing_info : array();
+$user_avatar   = ! empty( $user_avatar ) ? (string) $user_avatar : gmm_design_asset_url( 'assets/img/team/02.jpg' );
+$user_email    = isset( $user_email ) ? (string) $user_email : '';
+$teachers_url  = ! empty( $teachers_url ) ? (string) $teachers_url : ( function_exists( 'gmm_get_page_link' ) ? gmm_get_page_link( 'teachers' ) : '#' );
+$has_rows      = ! empty( $payment_rows );
+
+$spent_display = isset( $payment_stats['total_spent'] ) ? (int) round( (float) $payment_stats['total_spent'] ) : 0;
+$completed_n   = isset( $payment_stats['completed_count'] ) ? (int) $payment_stats['completed_count'] : 0;
+$pending_n     = isset( $payment_stats['pending_count'] ) ? (int) $payment_stats['pending_count'] : 0;
+$refund_n      = isset( $payment_stats['refund_count'] ) ? (int) $payment_stats['refund_count'] : 0;
+
+$bill_name    = isset( $billing_info['full_name'] ) && $billing_info['full_name'] ? (string) $billing_info['full_name'] : (string) $user_name;
+$bill_email   = isset( $billing_info['email'] ) && $billing_info['email'] ? (string) $billing_info['email'] : (string) $user_email;
+$bill_country = isset( $billing_info['country'] ) ? (string) $billing_info['country'] : '';
+$bill_address = isset( $billing_info['address'] ) ? (string) $billing_info['address'] : '';
+$bill_city    = isset( $billing_info['city'] ) ? (string) $billing_info['city'] : '';
+$bill_zip     = isset( $billing_info['zip'] ) ? (string) $billing_info['zip'] : '';
 ?>
-<div class="gmm-wrapper gmm-dashboard">
+<div class="gmm-wrapper gmm-dashboard" id="gmm-student-payments">
 
         <!-- student payments -->
         <div class="student-dashboard-area py-120">
@@ -26,7 +51,7 @@ if ( ! isset( $user_first_name ) ) {
                 <div class="sd-profile-header">
                     <div class="sd-profile-main">
                         <div class="sd-profile-avatar">
-                            <img src="<?php echo esc_url( gmm_design_asset_url( 'assets/img/team/02.jpg' ) ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
+                            <img src="<?php echo esc_url( $user_avatar ); ?>" alt="<?php echo esc_attr( $user_name ); ?>">
                         </div>
                         <div class="sd-profile-meta">
                             <h2><?php echo esc_html( $user_name ); ?></h2>
@@ -38,7 +63,7 @@ if ( ! isset( $user_first_name ) ) {
                         </div>
                     </div>
                     <div class="sd-profile-actions">
-                        <a href="teachers.html" class="theme-btn"><i class="far fa-calendar-plus"></i> Book a Lesson</a>
+                        <a href="<?php echo esc_url( $teachers_url ); ?>" class="theme-btn"><i class="far fa-calendar-plus"></i> Book a Lesson</a>
                     </div>
                 </div>
 
@@ -85,28 +110,28 @@ if ( ! isset( $user_first_name ) ) {
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-dollar-sign"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value">$<span class="counter" data-count="850">0</span></span>
+                                    <span class="sd-stat-value">$<span class="counter" data-count="<?php echo esc_attr( (string) $spent_display ); ?>" id="sp-stat-spent"><?php echo esc_html( (string) $spent_display ); ?></span></span>
                                     <span class="sd-stat-title">Total Spent</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-circle-check"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="12">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) $completed_n ); ?>" id="sp-stat-completed"><?php echo esc_html( (string) $completed_n ); ?></span>
                                     <span class="sd-stat-title">Completed Payments</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-clock"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="2">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) $pending_n ); ?>" id="sp-stat-pending"><?php echo esc_html( (string) $pending_n ); ?></span>
                                     <span class="sd-stat-title">Pending Payments</span>
                                 </div>
                             </div>
                             <div class="sd-stat-card">
                                 <div class="sd-stat-icon"><i class="far fa-rotate-left"></i></div>
                                 <div class="sd-stat-body">
-                                    <span class="sd-stat-value counter" data-count="1">0</span>
+                                    <span class="sd-stat-value counter" data-count="<?php echo esc_attr( (string) $refund_n ); ?>" id="sp-stat-refunds"><?php echo esc_html( (string) $refund_n ); ?></span>
                                     <span class="sd-stat-title">Refunds</span>
                                 </div>
                             </div>
@@ -154,14 +179,14 @@ if ( ! isset( $user_first_name ) ) {
                                 <button type="button" class="sl-tab" data-filter="failed" role="tab" aria-selected="false">Failed</button>
                             </div>
 
-                            <div class="sl-empty" id="sp-empty" hidden>
+                            <div class="sl-empty" id="sp-empty" <?php echo $has_rows ? 'hidden' : ''; ?>>
                                 <i class="far fa-receipt"></i>
                                 <h3>No payment history available yet.</h3>
                                 <p>Your lesson payments and invoices will appear here.</p>
-                                <a href="teachers.html" class="theme-btn"><i class="far fa-calendar-plus"></i> Book a Lesson</a>
+                                <a href="<?php echo esc_url( $teachers_url ); ?>" class="theme-btn"><i class="far fa-calendar-plus"></i> Book a Lesson</a>
                             </div>
 
-                            <div class="table-responsive td-table-wrap" id="sp-table-wrap">
+                            <div class="table-responsive td-table-wrap" id="sp-table-wrap" <?php echo $has_rows ? '' : 'hidden'; ?>>
                                 <table class="table td-table">
                                     <thead>
                                         <tr>
@@ -174,140 +199,12 @@ if ( ! isset( $user_first_name ) ) {
                                             <th>Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-
-                                        <tr class="sp-row" data-status="completed"
-                                            data-id="TXN-20260320-001"
-                                            data-date="March 20, 2026"
-                                            data-student="Sarah Johnson"
-                                            data-teacher="John Smith"
-                                            data-lesson="Gospel Piano Lesson"
-                                            data-amount="$40"
-                                            data-method="Stripe">
-                                            <td data-label="Date">March 20, 2026</td>
-                                            <td data-label="Teacher">John Smith</td>
-                                            <td data-label="Lesson">Gospel Piano Lesson</td>
-                                            <td data-label="Amount"><strong>$40</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed">Completed</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-view-receipt">View Receipt</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-download-invoice">Download Invoice</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sp-row" data-status="pending"
-                                            data-id="TXN-20260325-002"
-                                            data-date="March 25, 2026"
-                                            data-student="Sarah Johnson"
-                                            data-teacher="Emily Davis"
-                                            data-lesson="Vocal Training"
-                                            data-amount="$50"
-                                            data-method="Stripe">
-                                            <td data-label="Date">March 25, 2026</td>
-                                            <td data-label="Teacher">Emily Davis</td>
-                                            <td data-label="Lesson">Vocal Training</td>
-                                            <td data-label="Amount"><strong>$50</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending">Pending</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-view-receipt">View Receipt</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-download-invoice">Download Invoice</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sp-row" data-status="completed"
-                                            data-id="TXN-20260310-003"
-                                            data-date="March 10, 2026"
-                                            data-student="Sarah Johnson"
-                                            data-teacher="Michael Brown"
-                                            data-lesson="Guitar Basics"
-                                            data-amount="$40"
-                                            data-method="Stripe">
-                                            <td data-label="Date">March 10, 2026</td>
-                                            <td data-label="Teacher">Michael Brown</td>
-                                            <td data-label="Lesson">Guitar Basics</td>
-                                            <td data-label="Amount"><strong>$40</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed">Completed</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-view-receipt">View Receipt</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-download-invoice">Download Invoice</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sp-row" data-status="completed"
-                                            data-id="TXN-20260305-004"
-                                            data-date="March 5, 2026"
-                                            data-student="Sarah Johnson"
-                                            data-teacher="John Smith"
-                                            data-lesson="Beginner Gospel Piano"
-                                            data-amount="$40"
-                                            data-method="Stripe">
-                                            <td data-label="Date">March 5, 2026</td>
-                                            <td data-label="Teacher">John Smith</td>
-                                            <td data-label="Lesson">Beginner Gospel Piano</td>
-                                            <td data-label="Amount"><strong>$40</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-confirmed">Completed</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-view-receipt">View Receipt</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-download-invoice">Download Invoice</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sp-row" data-status="failed"
-                                            data-id="TXN-20260228-005"
-                                            data-date="February 28, 2026"
-                                            data-student="Sarah Johnson"
-                                            data-teacher="James Lee"
-                                            data-lesson="Hammond Organ Intro"
-                                            data-amount="$50"
-                                            data-method="Stripe">
-                                            <td data-label="Date">February 28, 2026</td>
-                                            <td data-label="Teacher">James Lee</td>
-                                            <td data-label="Lesson">Hammond Organ Intro</td>
-                                            <td data-label="Amount"><strong>$50</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-cancelled">Failed</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-view-receipt">View Receipt</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-download-invoice">Download Invoice</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr class="sp-row" data-status="pending"
-                                            data-id="TXN-20260402-006"
-                                            data-date="April 2, 2026"
-                                            data-student="Sarah Johnson"
-                                            data-teacher="Olivia Harris"
-                                            data-lesson="Music Theory"
-                                            data-amount="$38"
-                                            data-method="Stripe">
-                                            <td data-label="Date">April 2, 2026</td>
-                                            <td data-label="Teacher">Olivia Harris</td>
-                                            <td data-label="Lesson">Music Theory</td>
-                                            <td data-label="Amount"><strong>$38</strong></td>
-                                            <td data-label="Payment Method">Stripe</td>
-                                            <td data-label="Status"><span class="sb-badge is-pending">Pending</span></td>
-                                            <td data-label="Action">
-                                                <div class="sb-actions">
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-view-receipt">View Receipt</button>
-                                                    <button type="button" class="theme-btn theme-btn-outline sd-action-btn sp-download-invoice">Download Invoice</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-
+                                    <tbody id="sp-table-body">
+										<?php
+										if ( class_exists( 'GMM_Student_Payments' ) ) {
+											echo GMM_Student_Payments::render_rows_html( $payment_rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside helper.
+										}
+										?>
                                     </tbody>
                                 </table>
                             </div>
@@ -336,14 +233,14 @@ if ( ! isset( $user_first_name ) ) {
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="sp-full-name">Full Name</label>
-                                            <input type="text" class="form-control" id="sp-full-name" name="full_name" value="Sarah Johnson">
+                                            <input type="text" class="form-control" id="sp-full-name" name="full_name" value="<?php echo esc_attr( $bill_name ); ?>">
                                             <span class="field-feedback" data-for="sp-full-name"></span>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="sp-email">Email</label>
-                                            <input type="email" class="form-control" id="sp-email" name="email" value="sarah@example.com">
+                                            <input type="email" class="form-control" id="sp-email" name="email" value="<?php echo esc_attr( $bill_email ); ?>">
                                             <span class="field-feedback" data-for="sp-email"></span>
                                         </div>
                                     </div>
@@ -354,11 +251,11 @@ if ( ! isset( $user_first_name ) ) {
                                             <label for="sp-country">Country</label>
                                             <select class="form-control form-select" id="sp-country" name="country">
                                                 <option value="">Select country</option>
-                                                <option value="United States" selected>United States</option>
-                                                <option value="Canada">Canada</option>
-                                                <option value="United Kingdom">United Kingdom</option>
-                                                <option value="Australia">Australia</option>
-                                                <option value="Other">Other</option>
+                                                <option value="United States" <?php selected( $bill_country, 'United States' ); ?>>United States</option>
+                                                <option value="Canada" <?php selected( $bill_country, 'Canada' ); ?>>Canada</option>
+                                                <option value="United Kingdom" <?php selected( $bill_country, 'United Kingdom' ); ?>>United Kingdom</option>
+                                                <option value="Australia" <?php selected( $bill_country, 'Australia' ); ?>>Australia</option>
+                                                <option value="Other" <?php selected( $bill_country, 'Other' ); ?>>Other</option>
                                             </select>
                                             <span class="field-feedback" data-for="sp-country"></span>
                                         </div>
@@ -366,7 +263,7 @@ if ( ! isset( $user_first_name ) ) {
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="sp-address">Address</label>
-                                            <input type="text" class="form-control" id="sp-address" name="address" value="25 Milford Road">
+                                            <input type="text" class="form-control" id="sp-address" name="address" value="<?php echo esc_attr( $bill_address ); ?>">
                                             <span class="field-feedback" data-for="sp-address"></span>
                                         </div>
                                     </div>
@@ -375,14 +272,14 @@ if ( ! isset( $user_first_name ) ) {
                                     <div class="col-md-6">
                                         <div class="form-group mb-md-0">
                                             <label for="sp-city">City</label>
-                                            <input type="text" class="form-control" id="sp-city" name="city" value="Nashville">
+                                            <input type="text" class="form-control" id="sp-city" name="city" value="<?php echo esc_attr( $bill_city ); ?>">
                                             <span class="field-feedback" data-for="sp-city"></span>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-0">
                                             <label for="sp-zip">ZIP Code</label>
-                                            <input type="text" class="form-control" id="sp-zip" name="zip" value="37201">
+                                            <input type="text" class="form-control" id="sp-zip" name="zip" value="<?php echo esc_attr( $bill_zip ); ?>">
                                             <span class="field-feedback" data-for="sp-zip"></span>
                                         </div>
                                     </div>
@@ -412,6 +309,7 @@ if ( ! isset( $user_first_name ) ) {
                 <div class="modal-body">
                     <ul class="booking-modal-list">
                         <li><span>Transaction ID</span><strong id="sp-modal-id">—</strong></li>
+                        <li><span>Booking ID</span><strong id="sp-modal-booking">—</strong></li>
                         <li><span>Date</span><strong id="sp-modal-date">—</strong></li>
                         <li><span>Student Name</span><strong id="sp-modal-student">—</strong></li>
                         <li><span>Teacher Name</span><strong id="sp-modal-teacher">—</strong></li>
@@ -419,10 +317,16 @@ if ( ! isset( $user_first_name ) ) {
                         <li><span>Amount</span><strong id="sp-modal-amount">—</strong></li>
                         <li><span>Payment Method</span><strong id="sp-modal-method">—</strong></li>
                         <li><span>Payment Status</span><strong id="sp-modal-status">—</strong></li>
+                        <li><span>Lesson Status</span><strong id="sp-modal-booking-status">—</strong></li>
+                        <li><span>Refund Status</span><strong id="sp-modal-refund">—</strong></li>
                     </ul>
+                    <div class="sl-modal-notes" id="sp-modal-timeline-wrap" hidden>
+                        <h6>Transaction Timeline</h6>
+                        <ul id="sp-modal-timeline" class="booking-modal-list"></ul>
+                    </div>
                     <p class="sp-secure-note mb-0">
                         <i class="far fa-info-circle"></i>
-                        Demo receipt only. No real payment was processed.
+                        Receipt data prepared for print. PDF export will be available later.
                     </p>
                 </div>
                 <div class="modal-footer">

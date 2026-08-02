@@ -44,6 +44,10 @@ class GMM_Notifications {
 		$loader->add_action( 'gmm_booking_completed', $instance, 'on_booking_completed', 10, 2 );
 		$loader->add_action( 'gmm_payment_completed', $instance, 'on_payment_completed', 10, 2 );
 		$loader->add_action( 'gmm_payment_refunded', $instance, 'on_payment_refunded', 10, 2 );
+		$loader->add_action( 'gmm_withdrawal_requested', $instance, 'on_withdrawal_requested', 10, 3 );
+		$loader->add_action( 'gmm_withdrawal_approved', $instance, 'on_withdrawal_approved', 10, 2 );
+		$loader->add_action( 'gmm_withdrawal_rejected', $instance, 'on_withdrawal_rejected', 10, 2 );
+		$loader->add_action( 'gmm_withdrawal_paid', $instance, 'on_withdrawal_paid', 10, 2 );
 	}
 
 	/**
@@ -895,6 +899,183 @@ class GMM_Notifications {
 			$vars,
 			__( 'Payment refunded', 'gospel-music-mastery' ),
 			'refund_request'
+		);
+	}
+
+	/**
+	 * Teacher requested a withdrawal.
+	 *
+	 * @param int                  $withdrawal_id Withdrawal ID.
+	 * @param array<string, mixed> $row           Withdrawal row.
+	 * @param int                  $user_id       Teacher WP user ID.
+	 * @return void
+	 */
+	public function on_withdrawal_requested( $withdrawal_id, $row = array(), $user_id = 0 ) {
+		$ctx = self::withdrawal_context( $withdrawal_id, $row, $user_id );
+		if ( ! $ctx ) {
+			return;
+		}
+
+		if ( $ctx['teacher_user_id'] ) {
+			self::add_notification(
+				$ctx['teacher_user_id'],
+				'withdrawal_requested',
+				__( 'Withdrawal requested', 'gospel-music-mastery' ),
+				sprintf(
+					/* translators: %s: amount */
+					__( 'Your withdrawal request for %s is pending review.', 'gospel-music-mastery' ),
+					$ctx['amount_formatted']
+				)
+			);
+		}
+
+		self::notify_admins(
+			'withdrawal_requested',
+			__( 'Withdrawal requested', 'gospel-music-mastery' ),
+			sprintf(
+				/* translators: 1: withdrawal ID, 2: amount */
+				__( 'Withdrawal #%1$d requested for %2$s.', 'gospel-music-mastery' ),
+				$ctx['withdrawal_id'],
+				$ctx['amount_formatted']
+			),
+			'payment-completed',
+			array(
+				'user_name'  => $ctx['teacher_name'],
+				'amount'     => $ctx['amount_formatted'],
+				'site_name'  => self::site_name(),
+				'payment_id' => $ctx['withdrawal_id'],
+			),
+			__( 'Withdrawal requested', 'gospel-music-mastery' ),
+			'payment_activity'
+		);
+	}
+
+	/**
+	 * Withdrawal approved.
+	 *
+	 * @param int                  $withdrawal_id ID.
+	 * @param array<string, mixed> $row           Row.
+	 * @return void
+	 */
+	public function on_withdrawal_approved( $withdrawal_id, $row = array() ) {
+		$ctx = self::withdrawal_context( $withdrawal_id, $row );
+		if ( ! $ctx || ! $ctx['teacher_user_id'] ) {
+			return;
+		}
+		self::add_notification(
+			$ctx['teacher_user_id'],
+			'withdrawal_approved',
+			__( 'Withdrawal approved', 'gospel-music-mastery' ),
+			sprintf(
+				/* translators: %s: amount */
+				__( 'Your withdrawal of %s was approved.', 'gospel-music-mastery' ),
+				$ctx['amount_formatted']
+			)
+		);
+	}
+
+	/**
+	 * Withdrawal rejected.
+	 *
+	 * @param int                  $withdrawal_id ID.
+	 * @param array<string, mixed> $row           Row.
+	 * @return void
+	 */
+	public function on_withdrawal_rejected( $withdrawal_id, $row = array() ) {
+		$ctx = self::withdrawal_context( $withdrawal_id, $row );
+		if ( ! $ctx || ! $ctx['teacher_user_id'] ) {
+			return;
+		}
+		$note = ! empty( $row['admin_note'] ) ? ' ' . sanitize_text_field( (string) $row['admin_note'] ) : '';
+		self::add_notification(
+			$ctx['teacher_user_id'],
+			'withdrawal_rejected',
+			__( 'Withdrawal rejected', 'gospel-music-mastery' ),
+			sprintf(
+				/* translators: %s: amount */
+				__( 'Your withdrawal of %s was rejected.', 'gospel-music-mastery' ),
+				$ctx['amount_formatted']
+			) . $note
+		);
+	}
+
+	/**
+	 * Withdrawal marked paid.
+	 *
+	 * @param int                  $withdrawal_id ID.
+	 * @param array<string, mixed> $row           Row.
+	 * @return void
+	 */
+	public function on_withdrawal_paid( $withdrawal_id, $row = array() ) {
+		$ctx = self::withdrawal_context( $withdrawal_id, $row );
+		if ( ! $ctx || ! $ctx['teacher_user_id'] ) {
+			return;
+		}
+		self::add_notification(
+			$ctx['teacher_user_id'],
+			'withdrawal_paid',
+			__( 'Withdrawal paid', 'gospel-music-mastery' ),
+			sprintf(
+				/* translators: %s: amount */
+				__( 'Your withdrawal of %s has been paid.', 'gospel-music-mastery' ),
+				$ctx['amount_formatted']
+			)
+		);
+	}
+
+	/**
+	 * Resolve withdrawal notification context.
+	 *
+	 * @param int                  $withdrawal_id ID.
+	 * @param array<string, mixed> $row           Row.
+	 * @param int                  $user_id       Optional WP user.
+	 * @return array<string, mixed>|null
+	 */
+	private static function withdrawal_context( $withdrawal_id, $row = array(), $user_id = 0 ) {
+		$withdrawal_id = absint( $withdrawal_id );
+		$row           = is_array( $row ) ? $row : array();
+
+		if ( ( ! $row || empty( $row['teacher_id'] ) ) && $withdrawal_id && class_exists( 'GMM_Teacher_Earnings' ) ) {
+			$found = GMM_Teacher_Earnings::get_withdrawal_row( $withdrawal_id );
+			if ( is_array( $found ) ) {
+				$row = $found;
+			}
+		}
+
+		if ( empty( $row['teacher_id'] ) && ! $user_id ) {
+			return null;
+		}
+
+		$teacher_id = isset( $row['teacher_id'] ) ? absint( $row['teacher_id'] ) : 0;
+		$amount     = isset( $row['amount'] ) ? (float) $row['amount'] : 0.0;
+		$teacher_user_id = absint( $user_id );
+		$teacher_name    = '';
+
+		if ( ! $teacher_user_id && $teacher_id ) {
+			global $wpdb;
+			$teachers = GMM_Database::table( 'teachers' );
+			$trow     = $wpdb->get_row(
+				$wpdb->prepare( "SELECT user_id, first_name, last_name FROM {$teachers} WHERE id = %d", $teacher_id ),
+				ARRAY_A
+			);
+			if ( is_array( $trow ) ) {
+				$teacher_user_id = absint( $trow['user_id'] );
+				$teacher_name    = trim( (string) $trow['first_name'] . ' ' . (string) $trow['last_name'] );
+			}
+		} elseif ( $teacher_user_id ) {
+			$user = get_userdata( $teacher_user_id );
+			if ( $user ) {
+				$teacher_name = $user->display_name;
+			}
+		}
+
+		return array(
+			'withdrawal_id'    => $withdrawal_id ? $withdrawal_id : ( isset( $row['id'] ) ? absint( $row['id'] ) : 0 ),
+			'teacher_id'       => $teacher_id,
+			'teacher_user_id'  => $teacher_user_id,
+			'teacher_name'     => $teacher_name ? $teacher_name : __( 'Teacher', 'gospel-music-mastery' ),
+			'amount'           => $amount,
+			'amount_formatted' => '$' . number_format_i18n( $amount, 2 ),
 		);
 	}
 

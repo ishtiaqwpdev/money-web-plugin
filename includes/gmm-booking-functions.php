@@ -22,6 +22,20 @@ function gmm_create_booking( $data, $nonce = '' ) {
 }
 
 /**
+ * Create a student lesson booking (price from class; payment pending).
+ *
+ * @param array<string, mixed> $data  Booking fields.
+ * @param string               $nonce Optional gmm_booking_flow nonce.
+ * @return int|WP_Error
+ */
+function gmm_create_student_booking( $data, $nonce = '' ) {
+	if ( class_exists( 'GMM_Booking_Flow' ) ) {
+		return GMM_Booking_Flow::create_student_booking( $data, $nonce );
+	}
+	return gmm_create_booking( $data, $nonce );
+}
+
+/**
  * Check whether a teacher time slot is free.
  *
  * @param int    $teacher_id Teacher row ID.
@@ -119,6 +133,9 @@ function gmm_teacher_get_bookings( $user_id = 0, $args = array() ) {
  * @return true|WP_Error
  */
 function gmm_teacher_confirm_booking( $booking_id, $user_id = 0, $nonce = '' ) {
+	if ( class_exists( 'GMM_Teacher_Bookings' ) ) {
+		return GMM_Teacher_Bookings::confirm_booking( $booking_id, $user_id, $nonce );
+	}
 	if ( ! class_exists( 'GMM_Booking' ) ) {
 		return new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
 	}
@@ -133,11 +150,14 @@ function gmm_teacher_confirm_booking( $booking_id, $user_id = 0, $nonce = '' ) {
  * @param string $nonce      Optional nonce.
  * @return true|WP_Error
  */
-function gmm_teacher_cancel_booking( $booking_id, $user_id = 0, $nonce = '' ) {
+function gmm_teacher_cancel_booking( $booking_id, $user_id = 0, $nonce = '', $reason = '' ) {
+	if ( class_exists( 'GMM_Teacher_Bookings' ) ) {
+		return GMM_Teacher_Bookings::cancel_booking( $booking_id, $user_id, $nonce, $reason );
+	}
 	if ( ! class_exists( 'GMM_Booking' ) ) {
 		return new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
 	}
-	return GMM_Booking::teacher_cancel_booking( $booking_id, $user_id, $nonce );
+	return GMM_Booking::teacher_cancel_booking( $booking_id, $user_id, $nonce, $reason );
 }
 
 /**
@@ -149,6 +169,9 @@ function gmm_teacher_cancel_booking( $booking_id, $user_id = 0, $nonce = '' ) {
  * @return true|WP_Error
  */
 function gmm_teacher_complete_booking( $booking_id, $user_id = 0, $nonce = '' ) {
+	if ( class_exists( 'GMM_Teacher_Bookings' ) ) {
+		return GMM_Teacher_Bookings::complete_booking( $booking_id, $user_id, $nonce );
+	}
 	if ( ! class_exists( 'GMM_Booking' ) ) {
 		return new WP_Error( 'gmm_missing', __( 'Booking engine unavailable.', 'gospel-music-mastery' ) );
 	}
